@@ -1,5 +1,5 @@
 [project]
-name = "assetrush-api"
+name = "assetrush-backend"
 version = "0.1.0"
 description = "AssetRush 規則引擎與 API"
 requires-python = ">=3.12"

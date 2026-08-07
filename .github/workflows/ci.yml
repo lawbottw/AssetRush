@@ -27,11 +27,11 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: 掃描 engine 的 import
-        working-directory: apps/api
+        working-directory: apps/backend
         run: python scripts/check_engine_purity.py
 
-  api:
-    name: api（ruff / mypy / pytest）
+  backend:
+    name: backend（ruff / mypy / pytest）
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -39,34 +39,34 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-          cache-dependency-glob: apps/api/uv.lock
+          cache-dependency-glob: apps/backend/uv.lock
 
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: uv sync
-        working-directory: apps/api
+        working-directory: apps/backend
         run: uv sync --frozen
 
       - name: ruff check
-        working-directory: apps/api
+        working-directory: apps/backend
         run: uv run ruff check --output-format=github .
 
       - name: ruff format --check
-        working-directory: apps/api
+        working-directory: apps/backend
         run: uv run ruff format --check .
 
       - name: mypy
-        working-directory: apps/api
+        working-directory: apps/backend
         run: uv run mypy src scripts
 
       - name: pytest
-        working-directory: apps/api
+        working-directory: apps/backend
         run: uv run pytest -q
 
-  web:
-    name: web（eslint / tsc / vitest / build）
+  frontend:
+    name: frontend（eslint / tsc / vitest / build）
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -82,17 +82,17 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: eslint
-        working-directory: apps/web
+        working-directory: apps/frontend
         run: pnpm lint
 
       - name: tsc
-        working-directory: apps/web
+        working-directory: apps/frontend
         run: pnpm typecheck
 
       - name: vitest
-        working-directory: apps/web
+        working-directory: apps/frontend
         run: pnpm test
 
       - name: next build
-        working-directory: apps/web
+        working-directory: apps/frontend
         run: pnpm build

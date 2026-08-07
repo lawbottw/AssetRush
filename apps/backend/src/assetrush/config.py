@@ -3,7 +3,7 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# repo 根目錄：src/assetrush/config.py → assetrush → src → api → apps → <root>
+# repo 根目錄：config.py → assetrush → src → backend → apps → <root>
 REPO_ROOT = Path(__file__).resolve().parents[4]
 
 

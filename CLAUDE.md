@@ -20,7 +20,7 @@
 
 ### 2. `engine/` 零 I/O
 
-`apps/api/src/assetrush/engine/` 不得 import `supabase` / `sqlalchemy` / `httpx` / `requests` / `fastapi` / `asyncpg`。CI 會檢查。
+`apps/backend/src/assetrush/engine/` 不得 import `supabase` / `sqlalchemy` / `httpx` / `requests` / `fastapi` / `asyncpg`。CI 會檢查。
 
 理由：規則引擎必須能離線跑蒙地卡羅模擬（`make simulate`），那是平衡工作的前提。
 
@@ -110,12 +110,12 @@ config/          版本化遊戲數值 → game_configs 表。改這裡不改程
                  scale / identities / occupations / properties / board /
                  endgame / events / stocks / vehicles / insurance /
                  loans / alliances / confinement
-apps/api/src/assetrush/
+apps/backend/src/assetrush/
   engine/        ★ 純函式規則引擎，零 I/O
   services/      engine ↔ DB 橋接，advisory lock 在這層
   jobs/          APScheduler 排程
   sim/           蒙地卡羅模擬
-apps/web/
+apps/frontend/
   app/(web)/     獨立網站：SSR + RSC
   app/(liff)/    LINE Mini App：全 CSR（LIFF SDK 需要 window）
   lib/realtime/  RealtimeAdapter 抽象

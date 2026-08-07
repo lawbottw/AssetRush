@@ -28,7 +28,7 @@ LINE 整合排在很後面——它是獲客通路，但**在遊戲本身好玩�
 
 | 交付 | 內容 |
 |---|---|
-| Monorepo 結構 | `apps/web`（Next.js 15）、`apps/api`（FastAPI + uv）、`config/`、`supabase/` |
+| Monorepo 結構 | `apps/frontend`（Next.js 15）、`apps/backend`（FastAPI + uv）、`config/`、`supabase/` |
 | Makefile | `install` `dev` `build` `test` `lint` `migrate` `seed`（見 [06 §6](06-architecture.md#6-makefile)） |
 | Supabase 專案 | migration 骨架、三層資料表（見 [05](05-data-model.md)） |
 | Config 載入 | `config/*.json` → `game_configs` 表，含 `version` |

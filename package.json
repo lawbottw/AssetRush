@@ -7,9 +7,9 @@
     "node": ">=20.13"
   },
   "scripts": {
-    "dev": "pnpm --filter web dev",
-    "build": "pnpm --filter web build",
-    "lint": "pnpm --filter web lint",
-    "test": "pnpm --filter web test"
+    "dev": "pnpm --filter frontend dev",
+    "build": "pnpm --filter frontend build",
+    "lint": "pnpm --filter frontend lint",
+    "test": "pnpm --filter frontend test"
   }
 }

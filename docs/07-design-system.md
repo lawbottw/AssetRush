@@ -51,7 +51,7 @@
 ### 2.2 語意色（Tailwind v4 / OKLCH）
 
 ```css
-/* apps/web/app/globals.css */
+/* apps/frontend/app/globals.css */
 :root {
   --background:          oklch(0.98 0.005 85);
   --foreground:          oklch(0.22 0.02 160);
@@ -361,7 +361,7 @@ LINE WebView 的載入時間直接影響首次體驗，字體是最大的單一�
 
 ```makefile
 subset-font:        ## 產生 subset 字型
-	cd apps/web && pnpm tsx scripts/build-font-subset.ts
+	cd apps/frontend && pnpm tsx scripts/build-font-subset.ts
 ```
 
 ---
@@ -385,7 +385,7 @@ Flex Message 不支援 CSS 變數，需把 OKLCH 轉成 hex 常數。維護方�
 ## 9. shadcn 設定
 
 ```json
-// apps/web/components.json
+// apps/frontend/components.json
 {
   "$schema": "https://ui.shadcn.com/schema.json",
   "style": "new-york",

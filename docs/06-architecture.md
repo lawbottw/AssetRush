@@ -331,7 +331,7 @@ AssetRush/
 │   ├── vehicles.json
 │   └── insurance.json
 ├── apps/
-│   ├── web/                  # Next.js 15
+│   ├── frontend/             # Next.js 15
 │   │   ├── app/
 │   │   │   ├── (web)/        # SSR + RSC
 │   │   │   └── (liff)/       # 全 CSR
@@ -339,7 +339,7 @@ AssetRush/
 │   │   └── lib/
 │   │       ├── realtime/     # RealtimeAdapter 抽象（見風險 2）
 │   │       └── api/          # FastAPI client
-│   └── api/                  # FastAPI (uv)
+│   └── backend/              # FastAPI (uv)
 │       ├── pyproject.toml
 │       └── src/assetrush/
 │           ├── engine/       # ★ 純函式規則引擎，零 I/O
@@ -362,57 +362,61 @@ AssetRush/
 
 ## 6. Makefile
 
+> **真實來源是 repo 根目錄的 `Makefile`**，以下是設計意圖。兩處實作上的差異：
+> `dev` 不能用 `make -j2`（GnuWin32 make 3.81 在 Windows 不支援 `-j`，會靜默退回
+> `-j1`，結果只有一邊起得來），改為單一 recipe 內背景執行 + `trap` 記 PID。
+
 ```makefile
 .PHONY: install dev build test lint migrate seed simulate
 
 install:            ## 安裝前後端相依
-	cd apps/web && pnpm install
-	cd apps/api && uv sync
+	cd apps/frontend && pnpm install
+	cd apps/backend && uv sync
 
-dev:                ## 同時啟動 web + api
-	make -j2 dev-web dev-api
-dev-web:
-	cd apps/web && pnpm dev
-dev-api:
-	cd apps/api && uv run uvicorn assetrush.main:app --reload --port 8000
+dev:                ## 同時啟動 frontend + backend
+	# 實作見根目錄 Makefile：背景執行 + trap，不用 make -j2
+dev-frontend:
+	cd apps/frontend && pnpm dev
+dev-backend:
+	cd apps/backend && uv run uvicorn assetrush.main:app --reload --port 8000
 
 build:
-	cd apps/web && pnpm build
-	cd apps/api && uv build
+	cd apps/frontend && pnpm build
+	cd apps/backend && uv build
 
 test:
-	cd apps/api && uv run pytest
-	cd apps/web && pnpm test
+	cd apps/backend && uv run pytest
+	cd apps/frontend && pnpm test
 
 lint:
-	cd apps/api && uv run ruff check . && uv run mypy src
-	cd apps/web && pnpm lint
+	cd apps/backend && uv run ruff check . && uv run mypy src
+	cd apps/frontend && pnpm lint
 
 migrate:            ## 套用 Supabase migration
 	supabase db push
 
 seed:               ## 灌入 towns / stocks / config
-	cd apps/api && uv run python -m assetrush.scripts.seed_towns
-	cd apps/api && uv run python -m assetrush.scripts.seed_stocks
+	cd apps/backend && uv run python -m assetrush.scripts.seed_towns
+	cd apps/backend && uv run python -m assetrush.scripts.seed_stocks
 	make seed-config
 
 seed-config:        ## config/*.json → game_configs 表
-	cd apps/api && uv run python -m assetrush.scripts.seed_config
+	cd apps/backend && uv run python -m assetrush.scripts.seed_config
 
 sync-stocks:        ## 手動觸發 TWSE 同步
-	cd apps/api && uv run python -m assetrush.jobs.sync_stock_prices
+	cd apps/backend && uv run python -m assetrush.jobs.sync_stock_prices
 
 etl-towns:          ## 手動觸發實價登錄 ETL
-	cd apps/api && uv run python -m assetrush.jobs.etl_town_prices
+	cd apps/backend && uv run python -m assetrush.jobs.etl_town_prices
 
 simulate:           ## 蒙地卡羅平衡驗證（見風險 6）
-	cd apps/api && uv run python -m assetrush.sim.run \
+	cd apps/backend && uv run python -m assetrush.sim.run \
 		--games $(or $(GAMES),1000) \
 		--mode $(or $(MODE),blitz) \
 		--players $(or $(PLAYERS),6)
 
 verify-game:        ## 重放事件流並比對快照（見 05 §5.3）
-	cd apps/api && uv run python -m assetrush.scripts.verify_game $(GAME_ID)
+	cd apps/backend && uv run python -m assetrush.scripts.verify_game $(GAME_ID)
 ```
 
 ---

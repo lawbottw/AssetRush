@@ -164,7 +164,7 @@ def engine_modules(src_root: Path) -> list[Path]:
 
 
 def default_src_root() -> Path:
-    # scripts/check_engine_purity.py → apps/api → apps/api/src
+    # scripts/check_engine_purity.py → apps/backend → apps/backend/src
     return Path(__file__).resolve().parents[1] / "src"
 
 

@@ -234,7 +234,7 @@ M9 只是把假的換成真的。
 
 | Issue | 說明 |
 |---|---|
-| `[infra] 建立 monorepo 結構` | `apps/web`、`apps/api`、`config/`、`supabase/` |
+| `[infra] 建立 monorepo 結構` | `apps/frontend`、`apps/backend`、`config/`、`supabase/` |
 | `[infra] Makefile 骨架` | `install / dev / build / test / lint / validate-config` |
 | `[infra] Next.js 15 初始化` | App Router、Tailwind v4、shadcn init |
 | `[infra] FastAPI + uv 初始化` | `pyproject.toml`、ruff、mypy |
