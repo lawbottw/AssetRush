@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "22"
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  # ★ 鐵律 2：engine/ 零 I/O。
+  # 獨立成一個 job 而非塞進 api job，因為它是這條 pipeline 唯一「架構性」的檢查，
+  # 壞掉時要一眼看得出是邊界被打破，而不是被埋在一堆單元測試裡。
+  # 它不需要裝任何相依（純 AST 掃描），所以也是最快回饋的一關。
+  engine-purity:
+    name: engine 零 I/O 邊界檢查
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: 掃描 engine 的 import
+        working-directory: apps/backend
+        run: python scripts/check_engine_purity.py
+
+  backend:
+    name: backend（ruff / mypy / pytest）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: apps/backend/uv.lock
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: uv sync
+        working-directory: apps/backend
+        run: uv sync --frozen
+
+      - name: ruff check
+        working-directory: apps/backend
+        run: uv run ruff check --output-format=github .
+
+      - name: ruff format --check
+        working-directory: apps/backend
+        run: uv run ruff format --check .
+
+      - name: mypy
+        working-directory: apps/backend
+        run: uv run mypy src scripts
+
+      - name: pytest
+        working-directory: apps/backend
+        run: uv run pytest -q
+
+  frontend:
+    name: frontend（eslint / tsc / vitest / build）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: pnpm install
+        run: pnpm install --frozen-lockfile
+
+      - name: eslint
+        working-directory: apps/frontend
+        run: pnpm lint
+
+      - name: tsc
+        working-directory: apps/frontend
+        run: pnpm typecheck
+
+      - name: vitest
+        working-directory: apps/frontend
+        run: pnpm test
+
+      - name: next build
+        working-directory: apps/frontend
+        run: pnpm build

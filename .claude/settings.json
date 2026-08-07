@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e ' *)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(grep -n \"^#\\\\{1,3\\\\} \" docs/06-architecture.md)",
+      "Bash(grep -n \"^#\\\\{1,3\\\\} \" docs/07-design-system.md)",
+      "Bash(pnpm -v)",
+      "Bash(uv --version)",
+      "Bash(make --version)",
+      "Bash(pnpm create *)",
+      "Bash(pnpm install *)",
+      "Bash(pnpm dlx *)",
+      "Bash(pnpm lint *)",
+      "Bash(pnpm exec *)",
+      "Bash(pnpm build *)",
+      "Bash(uv run *)",
+      "Read(//bin/**)",
+      "Bash(/bin/sh -c 'echo sh-ok')",
+      "Bash(make help *)",
+      "Bash(make install *)",
+      "PowerShell(Get-CimInstance Win32_Process -Filter \"ProcessId=19492 or ProcessId=19188\")"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\alex4\\.claude\\projects\\d--Coding-app-AssetRush"
+    ]
+  }
+}

@@ -1,0 +1,158 @@
+{
+  "version": "2026.08.3",
+  "_doc": "docs/03-map-system.md — 368 鄉鎮 → 動態抽樣棋盤",
+
+  "regions": [
+    { "key": "north",   "name": "北北基",     "counties": ["台北市", "新北市", "基隆市"] },
+    { "key": "taoyuan", "name": "桃竹苗",     "counties": ["桃園市", "新竹市", "新竹縣", "苗栗縣"] },
+    { "key": "central", "name": "中彰投",     "counties": ["台中市", "彰化縣", "南投縣"] },
+    { "key": "south",   "name": "雲嘉南",     "counties": ["雲林縣", "嘉義市", "嘉義縣", "台南市"] },
+    { "key": "kaoping", "name": "高屏",       "counties": ["高雄市", "屏東縣"] },
+    { "key": "east",    "name": "宜花東離島", "counties": ["宜蘭縣", "花蓮縣", "台東縣", "澎湖縣", "金門縣", "連江縣"] }
+  ],
+
+  "price_tiers": [
+    { "tier": 5, "name": "精華", "percentile_from": 0.95, "percentile_to": 1.00 },
+    { "tier": 4, "name": "高價", "percentile_from": 0.80, "percentile_to": 0.95 },
+    { "tier": 3, "name": "中價", "percentile_from": 0.50, "percentile_to": 0.80 },
+    { "tier": 2, "name": "平價", "percentile_from": 0.20, "percentile_to": 0.50 },
+    { "tier": 1, "name": "低價", "percentile_from": 0.00, "percentile_to": 0.20 }
+  ],
+
+  "function_tiles": {
+    "_note": "只剩 6 種。證交所／監理站／進修中心已全部移除 — 股票、貸款、進修轉職、買車、保險都改到『通過起點的季度事務』辦理。棋盤上只剩「移動與地產」的純粹大富翁體驗。",
+    "_harmless_note": "監獄與醫院是實體格位，但走到它們本身無害（探監／健檢）。只有命運卡會把你送進去。",
+    "kinds": ["start", "opportunity", "fate", "tax", "jail", "hospital"],
+
+    "layouts": {
+      "16": [
+        { "kind": "start", "count": 1, "fixed_index": 0 },
+        { "kind": "opportunity", "count": 1 },
+        { "kind": "fate", "count": 1 },
+        { "kind": "tax", "count": 1 },
+        { "kind": "jail", "count": 1 },
+        { "kind": "hospital", "count": 1 }
+      ],
+      "22": [
+        { "kind": "start", "count": 1, "fixed_index": 0 },
+        { "kind": "opportunity", "count": 2 },
+        { "kind": "fate", "count": 2 },
+        { "kind": "tax", "count": 1 },
+        { "kind": "jail", "count": 1 },
+        { "kind": "hospital", "count": 1 }
+      ],
+      "25": [
+        { "kind": "start", "count": 1, "fixed_index": 0 },
+        { "kind": "opportunity", "count": 2 },
+        { "kind": "fate", "count": 2 },
+        { "kind": "tax", "count": 1 },
+        { "kind": "jail", "count": 1 },
+        { "kind": "hospital", "count": 1 }
+      ],
+      "28": [
+        { "kind": "start", "count": 1, "fixed_index": 0 },
+        { "kind": "opportunity", "count": 2 },
+        { "kind": "fate", "count": 2 },
+        { "kind": "tax", "count": 1 },
+        { "kind": "jail", "count": 1 },
+        { "kind": "hospital", "count": 1 }
+      ],
+      "32": [
+        { "kind": "start", "count": 1, "fixed_index": 0 },
+        { "kind": "opportunity", "count": 3 },
+        { "kind": "fate", "count": 3 },
+        { "kind": "tax", "count": 1 },
+        { "kind": "jail", "count": 1 },
+        { "kind": "hospital", "count": 1 }
+      ],
+      "36": [
+        { "kind": "start", "count": 1, "fixed_index": 0 },
+        { "kind": "opportunity", "count": 3 },
+        { "kind": "fate", "count": 3 },
+        { "kind": "tax", "count": 1 },
+        { "kind": "jail", "count": 1 },
+        { "kind": "hospital", "count": 1 }
+      ],
+      "48": [
+        { "kind": "start", "count": 1, "fixed_index": 0 },
+        { "kind": "opportunity", "count": 4 },
+        { "kind": "fate", "count": 4 },
+        { "kind": "tax", "count": 2 },
+        { "kind": "jail", "count": 1 },
+        { "kind": "hospital", "count": 1 }
+      ]
+    },
+    "fallback_rule": "未列出的格數以最接近的 layout 為準，並依比例調整機會/命運數量（維持約 6% 各）"
+  },
+
+  "sampling": {
+    "_doc": "docs/03-map-system.md §3",
+    "deterministic_from": "game_seed",
+
+    "constraints_scale_with_board": true,
+    "_scale_note": "第一版的固定約束集（六區各 ≥2 格 = 需 12 格）在小棋盤上無解 — blitz 最小棋盤只有 10 格地產。改為隨地產格數縮放。",
+    "constraints": {
+      "C1_min_tiles_per_region": "property_tiles >= 18 ? 2 : 1",
+      "C2_tier5_range":          "property_tiles >= 18 ? [2,3] : [1,1]",
+      "C3_min_tier1_plus_tier2": "max(3, round(property_tiles * 0.35))",
+      "C4_max_tiles_per_county": "max(3, round(property_tiles * 0.22))",
+      "C5_min_counties_with_2_to_3_tiles": "max(2, floor(property_tiles / 5))",
+      "C6_no_duplicate_towns": true
+    },
+    "_feasibility": "已驗算 10/11/12/14/17/19/20/23/26/35 格地產（涵蓋 blitz 與 daily 全部區間），縮放後約束集皆有解。硬需求下界 = max(6×C1, C2max+C3, 2×C5)，在所有尺寸下皆 ≤ 地產格數。",
+
+    "weight_formula": "log(population) * tier_weight[price_tier]",
+    "tier_weight": { "1": 1.0, "2": 1.3, "3": 1.5, "4": 1.2, "5": 0.6 },
+    "_tier_weight_note": "T3 中價出現頻率最高、T5 最低，模擬真實台灣房市的分布感受，並避免棋盤被極端值主導。"
+  },
+
+  "arrangement": {
+    "_doc": "docs/03-map-system.md §3.6 — 抽樣決定『有哪些格』，梯度決定『排在哪裡』。",
+    "mode": "price_gradient",
+    "hills": [2, 3],
+    "_note": "地產格依基價排成 2-3 個『價格山丘』，峰頂為 T4/T5。純隨機排列會讓起點附近隨機出現精華區，不合理地放大先手優勢；梯度也提供玩家空間直覺，取代被抽樣打散的棋盤記憶。",
+    "function_tile_rules": {
+      "no_adjacent_function_tiles": true,
+      "tile_after_start_must_be_property": true
+    }
+  },
+
+  "themes": {
+    "standard":     { "name": "標準局",       "overrides": {} },
+    "taipei_only":  { "name": "台北居大不易", "overrides": { "county_whitelist": ["台北市", "新北市"], "C1_min_tiles_per_region": 0 } },
+    "round_island": { "name": "環島局",       "overrides": { "exact_tiles_per_region": "floor(property_tiles / 6)" } },
+    "hometown":     { "name": "同鄉局",       "overrides": { "guaranteed_county_ratio": 0.25 }, "requires_param": "county" },
+    "budget":       { "name": "新手友善",     "overrides": { "C2_tier5_range": [0, 0], "C3_min_tier1_plus_tier2": "round(property_tiles * 0.6)" } }
+  },
+
+  "sponsorship": {
+    "_doc": "docs/03-map-system.md §5",
+    "max_slots_per_game": 3,
+    "max_landing_event_amount": 30000,
+    "affects_base_price": false,
+    "affects_rent": false,
+    "_note": "贊助內容是資料不是程式碼 — 業務簽約後由後台建檔即可上線。贊助格的基價與租金仍依真實房價計算，不能用贊助買遊戲優勢。"
+  },
+
+  "data_source": {
+    "provider": "內政部實價登錄",
+    "portals": ["https://lvr.land.moi.gov.tw/", "https://data.gov.tw/"],
+    "update_frequency": "quarterly",
+    "has_official_api": false,
+    "_note": "無官方即時 API，僅每季批次 CSV/XML 下載，需自建 ETL 聚合到鄉鎮級（見 docs/04-economy-and-realdata.md §4）。",
+    "etl": {
+      "aggregate": "median",
+      "_aggregate_note": "用中位數而非平均數 — 單一豪宅交易會把小鄉鎮的平均值拉到失真。",
+      "exclude": [
+        "車位單獨交易", "非住宅用地", "親友間交易",
+        "面積 < 10 坪或 > 200 坪", "單價落在該鄉鎮 P5 以下或 P95 以上"
+      ],
+      "min_txn_count": 10,
+      "imputation_multiplier": 0.85,
+      "_imputation_note": "交易量 < 10 筆的鄉鎮用同縣市中位數 × 0.85 補值。台灣有數十個鄉鎮一季住宅交易量是個位數，直接用中位數會極不穩定。"
+    }
+  },
+
+  "frozen_at_game_start": true,
+  "_freeze_note": "棋盤與各格基價於開局時寫入 board_tiles 固化。季度房價 ETL 只影響之後開的新局。局一旦開始，它的世界就凍結了。"
+}

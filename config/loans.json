@@ -1,0 +1,106 @@
+{
+  "version": "2026.08.3",
+  "_doc": "docs/01-game-rules.md §12 借貸與破產、docs/02-game-balance.md §10",
+
+  "_access": "貸款不是棋盤格。申請與還款都在「通過起點的季度事務」辦理，唯一例外是購地/升級時可當場開立房貸（見 origination_points）。",
+
+  "_design": "取代前一版單一的「總資產 × 50%」額度。改為多種貸款各有核貸依據 — 有薪水的人靠信用貸款、有地產的人靠抵押、有股票的人靠質押。這讓「我現在缺錢該怎麼辦」在不同資產結構下有不同答案，也讓玩家實際體驗到「銀行看的是你有什麼，不是你需要多少」。",
+
+  "products": [
+    {
+      "key": "credit",
+      "name": "信用貸款",
+      "underwriting_basis": "salary",
+      "limit_formula": "monthly_salary * salary_multiple[occupation_tier]",
+      "salary_multiple": { "1": 16, "2": 20, "3": 22 },
+      "_multiple_note": "上限 22 倍錨定台灣金管會對銀行無擔保債務的「月薪 22 倍」規範。職業層級越高核貸倍數越高 — 這是真實的，也給了進修轉職一個薪水以外的回報。",
+      "rate_per_lap": 0.020,
+      "requires_no_default": true,
+      "unavailable_while": ["studying", "jailed", "unemployed"]
+    },
+    {
+      "key": "mortgage",
+      "name": "房屋抵押貸款",
+      "underwriting_basis": "property",
+      "limit_formula": "sum(unmortgaged_property_market_value) * 0.60",
+      "rate_per_lap": 0.012,
+      "_note": "利率最低但需要有地產。與 properties.json 的「抵押」是不同機制：抵押是把地產交給銀行換現金且失去租金；房貸是借錢但地產仍可收租，只是被設定為擔保品、不可出售。"
+    },
+    {
+      "key": "stock_pledge",
+      "name": "股票質押",
+      "underwriting_basis": "holdings",
+      "limit_formula": "sum(holdings_market_value) * 0.50",
+      "rate_per_lap": 0.015,
+      "margin_call_ratio": 1.3,
+      "_margin_call_note": "若持股市值跌到貸款餘額的 1.3 倍以下，觸發追繳：需補現金或被強制賣出持股。這是遊戲裡唯一的槓桿風險，刻意保留，因為它是股票玩法最真實的一課。"
+    },
+    {
+      "key": "student_loan",
+      "name": "就學貸款",
+      "underwriting_basis": "none",
+      "fixed_amount": 300000,
+      "rate_per_lap": 0.005,
+      "granted_at_start_to": ["indebted"],
+      "_note": "僅開局負債家庭持有，不可主動申請。"
+    },
+    {
+      "key": "private_lender",
+      "name": "民間信貸",
+      "underwriting_basis": "none",
+      "limit_formula": "shortfall_amount",
+      "rate_per_lap": 0.080,
+      "always_approved": true,
+      "_note": "無審核、隨借隨有，但利率是信用貸款的 4 倍。存在的意義是給玩家一個「明知不該但現在必須」的選擇 — 它通常是破產前的最後一步，而不是解方。UI 上必須明確標示風險，不做誘導。"
+    }
+  ],
+
+  "origination_points": {
+    "_doc": "使用者要求：買房的格子時也可以決定是否要貸房貸",
+    "quarterly_affairs": {
+      "products": ["credit", "mortgage", "stock_pledge", "private_lender"],
+      "_note": "通過起點時可申請或償還任何產品。"
+    },
+    "on_property_purchase": {
+      "products": ["mortgage"],
+      "_note": "購地或升級時，當場選擇「以房貸支付」即開立一筆 mortgage。額度仍受該產品規則約束（未抵押地產市值 × 60%）。",
+      "covers_claim_premium": false,
+      "_premium_note": "認購溢價不可貸款 — 銀行只認基價。想加價搶地就得掏現金。"
+    },
+    "on_forced_liquidation": {
+      "products": ["private_lender"],
+      "_note": "清算流程中系統會詢問是否借民間信貸避免破產。必須明確標示年化 36% 與還清所需圈數，不做誘導。"
+    }
+  },
+
+  "repayment": {
+    "auto_minimum_payment": true,
+    "minimum_payment_formula": "balance * 0.05 + accrued_interest",
+    "charged_at": "income_settlement",
+    "frequency": "per_lap",
+    "early_repayment_allowed": true,
+    "early_repayment_penalty": 0
+  },
+
+  "default": {
+    "trigger": "現金不足以支付最低應繳",
+    "effects": [
+      { "type": "default_record", "increment": 1 },
+      { "type": "rate_increase", "value": 0.010 },
+      { "type": "block_new_credit_loan", "laps": 2 }
+    ],
+    "records_to_blacklist": 3,
+    "blacklist_effect": "僅剩民間信貸可用",
+    "_note": "違約不會立即破產，但會讓後續融資成本螺旋上升。這是真實的債務陷阱，也是遊戲想傳達的東西之一。"
+  },
+
+  "total_debt_cap": {
+    "formula": "net_worth * 1.5",
+    "_note": "所有貸款餘額合計上限。超過則無法再借（民間信貸除外）。"
+  },
+
+  "occupation_perks": {
+    "finance": { "credit_rate_discount": 0.005, "_note": "金融業從業人員的信貸利率 -0.5%/圈。" },
+    "civil_servant": { "salary_multiple_bonus": 4, "_note": "公教人員信貸倍數 +4（真實世界銀行確實偏好公教）。" }
+  }
+}

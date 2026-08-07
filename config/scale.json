@@ -1,0 +1,47 @@
+{
+  "version": "2026.08.3",
+  "_doc": "docs/02-game-balance.md §0 — 尺度基準。這個檔案決定了其他所有數字的量級，改動前請重讀該節推導。",
+
+  "currency": {
+    "unit": "TWD",
+    "_note": "遊戲內不設虛擬幣，直接用新台幣元。月薪 $38,000 就是真的 $38,000。"
+  },
+
+  "time": {
+    "laps_per_year": 4,
+    "months_per_lap": 3,
+    "_note": "1 圈 = 1 季。經過起點領季薪（月薪×3）。每 4 圈為 1 遊戲年，觸發年度結算（年終、股息、保費、折舊）。此設定讓「繞一圈的收入 ≈ 買下一格的成本」成立，是整個經濟平衡的根基。",
+    "daily_mode_mapping": "1 現實天 = 1 圈 = 1 季",
+    "_daily_note": "日常型每日行動就是走完一圈，所以現實日曆與遊戲季度是 1:1。21 天的局 = 21 季 ≈ 5.25 遊戲年，年度結算每 4 天觸發一次。這也讓 T+1 股價（一天更新一次）與季度事務（一圈一次）天然對齊。",
+    "blitz_mode_mapping": "1 圈 = 1 季，圈數由目標時長決定（2-12 圈）"
+  },
+
+  "start_tile_affairs": {
+    "_doc": "docs/01-game-rules.md 季度事務",
+    "_note": "通過起點不只是領薪水，而是「這一季的財務結算日」。所有理財動作集中於此 — 棋盤上只剩移動與地產。",
+    "auto": ["quarterly_salary", "rent_income_summary", "annual_settlement_if_due"],
+    "optional_once_per_lap": ["stock_trade", "loan_apply_or_repay", "education_or_career_change", "vehicle_buy_or_sell", "insurance_adjust", "side_job_choice"],
+    "removed_board_tiles": ["exchange", "dmv", "academy"],
+    "_removed_note": "證交所、監理站、進修中心三種格已從棋盤移除。它們原本讓「能不能進修」變成運氣問題，而且散在自由行動階段每回合都要問玩家一次，UI 很囉嗦。"
+  },
+
+  "property_price_mapping": {
+    "K": 0.4,
+    "gamma": 1.0,
+    "formula": "base_price = round(avg_price_per_ping * K ^ gamma, -3)",
+    "_note": "gamma=1.0 為線性映射，不做 log 壓縮，直接反映真實房價差距（約 13 倍）。K 與 gamma 皆可調：gamma<1 壓縮差距、gamma>1 放大。",
+    "expected_range": { "min": 12000, "max": 440000, "mean": 130000 }
+  },
+
+  "start_tile": {
+    "salary_multiplier": 3,
+    "landing_bonus": 20000,
+    "_note": "salary_multiplier=3 即季薪。landing_bonus 為「恰好停在起點」的額外獎金。"
+  },
+
+  "dice": {
+    "sides": 6,
+    "count": 1,
+    "_note": "基礎 1D6，車輛提供固定加成。日常型每回合擲 2 次（見 endgame.json 的 modes.daily.rolls_per_turn）。"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "version": "2026.08.3",
+  "_doc": "docs/02-game-balance.md §8.1、docs/01-game-rules.md §10",
+  "_design": "車不是純粹的加速道具，而是雙面選擇：走得快 = 更常領薪水、更快掃無主地，但也更常踩到別人的高租金地產，且養護費持續失血。目標是不存在普遍最優解 — P1 模擬的驗證標準是三種車 + 無車的勝率差距 < 10 個百分點。",
+
+  "⚠_daily_mode_open_question": "「一日一季」改制後，日常型每天固定走完一圈，移動加成的價值從『多繞圈』變成『用更少擲骰走完同一圈』= 沿途踩到的格子變少 = 少付租金、也少機會買地。這是完全不同的價值主張，原本的平衡推導失效。P1 模擬必須重新評估；若證實無意義，考慮在日常型停用車輛系統或改為『減少沿途落點數』的明確定位。即時配對型不受影響（回合數固定，走得快仍等於多繞圈）。",
+
+  "vehicles": [
+    { "key": "none",     "name": "無",     "price": 0,       "move_bonus": 0, "upkeep_per_turn": 0 },
+    { "key": "scooter",  "name": "機車",   "price": 80000,   "move_bonus": 1, "upkeep_per_turn": 1000 },
+    { "key": "domestic", "name": "國產車", "price": 600000,  "move_bonus": 2, "upkeep_per_turn": 5000 },
+    { "key": "imported", "name": "進口車", "price": 1800000, "move_bonus": 3, "upkeep_per_turn": 15000 }
+  ],
+
+  "depreciation": {
+    "per_year_ratio": 0.25,
+    "laps_per_year": 4,
+    "_note": "每 4 圈（1 遊戲年）殘值 −25%。"
+  },
+
+  "sale": {
+    "at_dmv_ratio": 0.90,
+    "online_ratio": 0.80,
+    "online_fee": 5000,
+    "on_bankruptcy_ratio": 0.70
+  },
+
+  "purchase": {
+    "free_at_dmv": true,
+    "online_fee": 5000
+  }
+}

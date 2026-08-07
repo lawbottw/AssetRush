@@ -1,0 +1,148 @@
+{
+  "version": "2026.08.3",
+  "_doc": "docs/02-game-balance.md §4 局的規模與結束門檻",
+
+  "modes": {
+    "blitz": {
+      "name": "即時配對型",
+      "min_players": 2,
+      "max_players": 8,
+      "rolls_per_turn": 1,
+      "turn_timeout_seconds": 20,
+      "uses_realtime": true,
+      "purchase_mode": "instant",
+      "_purchase_note": "即時配對型是即時嚴格輪流，不會有兩人同時決策，所以購地立即成交、不走認購仲裁。",
+      "trade_offer_ttl_seconds": 60,
+      "confinement_max_turns": 1,
+      "_confinement_note": "20-40 回合的局關 2 回合等於 10% 的遊戲，故上限壓到 1 回合。",
+
+      "auto_config": {
+        "_note": "房主只選『想玩多久』，系統依人數反推格數與圈數。因為時長 = 回合數 × 人數，固定 preset 給不了固定時長（同一組設定 4 人 18 分、8 人 34 分）。",
+        "target_minutes_options": [20, 30, 45],
+        "default_target_minutes": 30,
+        "sec_per_turn": 12,
+        "avg_dice": 3.5,
+        "base_laps": 4,
+        "tiles_min": 16,
+        "tiles_max": 32,
+        "laps_min": 2,
+        "laps_max": 12,
+        "formula": [
+          "turns_per_player = target_minutes * 60 / sec_per_turn / players",
+          "tiles = round(turns_per_player / base_laps * avg_dice)",
+          "if tiles < tiles_min:  tiles = tiles_min; laps = round(turns_per_player / (tiles_min / avg_dice))",
+          "elif tiles > tiles_max: tiles = tiles_max; laps = round(turns_per_player / (tiles_max / avg_dice))",
+          "else:                   laps = base_laps",
+          "laps = clamp(laps, laps_min, laps_max)"
+        ],
+        "_sec_per_turn_warning": "12 秒是估計值。P2 熱座測試必須實測校正 — 放在 config 而非程式碼就是為了這件事。所有時長預測都建立在這個常數上。",
+        "_verified_range": "已驗算 (20/30/45 分) × (2…8 人) 全部 21 種組合，最大時長誤差 10%。",
+        "examples": [
+          { "target_minutes": 20, "players": 4, "tiles": 22, "laps": 4, "property_tiles": 14, "actual_minutes": 20 },
+          { "target_minutes": 20, "players": 6, "tiles": 16, "laps": 4, "property_tiles": 10, "actual_minutes": 22 },
+          { "target_minutes": 20, "players": 8, "tiles": 16, "laps": 3, "property_tiles": 10, "actual_minutes": 22 },
+          { "target_minutes": 30, "players": 4, "tiles": 32, "laps": 4, "property_tiles": 23, "actual_minutes": 29 },
+          { "target_minutes": 30, "players": 6, "tiles": 22, "laps": 4, "property_tiles": 14, "actual_minutes": 30 },
+          { "target_minutes": 30, "players": 8, "tiles": 16, "laps": 4, "property_tiles": 10, "actual_minutes": 29 },
+          { "target_minutes": 45, "players": 2, "tiles": 32, "laps": 12, "property_tiles": 23, "actual_minutes": 44 },
+          { "target_minutes": 45, "players": 6, "tiles": 32, "laps": 4, "property_tiles": 23, "actual_minutes": 44 },
+          { "target_minutes": 45, "players": 8, "tiles": 25, "laps": 4, "property_tiles": 17, "actual_minutes": 46 }
+        ],
+        "lobby_preview": "大廳即時顯示「6 人 · 22 格 · 4 圈 · 約 30 分鐘」，人數變動即時重算",
+        "lobby_warning_property_tiles_below": 12,
+        "lobby_warning_text": "地產稀少，快節奏對抗局"
+      },
+
+      "wall_clock_hard_limit_multiplier": 1.5,
+      "_hard_limit_note": "超過目標時長 1.5 倍仍未結束時強制結算，防止拖局。"
+    },
+
+    "daily": {
+      "name": "日常型",
+      "min_players": 2,
+      "max_players": 30,
+      "day_limit": 21,
+      "lap_limit": 21,
+      "_length_note": "1 天 = 1 圈 = 1 季。21 天 = 21 圈 ≈ 5.25 遊戲年。年度結算（保險/股息/年終/折舊）每 4 圈 = 每 4 天。",
+      "uses_realtime": false,
+      "purchase_mode": "claim_auction",
+      "trade_offer_ttl_hours": 48,
+      "confinement_max_turns": 3,
+
+      "turn_structure": {
+        "mode": "one_lap_per_day",
+        "_note": "每日行動 = 從你目前位置擲骰前進，直到通過起點為止。位置持續（不重置），擲骰次數自然浮動，session 永遠結束在起點。",
+        "_decision_note": "8-14 次擲骰中只有約 3-5 次是真決策（要不要出價買地），其餘自動結算 → 每日 3-5 分鐘。",
+        "async": true,
+        "_async_note": "玩家可在當日任意時間行動，互不阻塞。移動/租金/卡片/領薪立即結算（這些動作皆可交換，誰先誰後結果相同）；唯一不可並行的是搶同一塊無主地，交由認購仲裁處理。",
+        "settlement_time": "00:00",
+        "turn_order_rotates_daily": true,
+        "_order_note": "回合順位開局擲 1D100 排定，每日輪替一位。只在同價競標時作為仲裁權 — 順序感從『排隊』轉為『競標』。",
+        "on_missed_day": "standing_orders",
+        "_missed_note": "當日未行動者於 00:00 結算時由 Standing Orders 自動走完一圈。"
+      },
+
+      "board_size_by_players": [
+        { "min": 2,  "max": 6,  "total_tiles": 28, "function_tiles": 8,  "property_tiles": 20, "avg_rolls_per_day": 8,  "est_session_minutes": 3 },
+        { "min": 7,  "max": 14, "total_tiles": 36, "function_tiles": 10, "property_tiles": 26, "avg_rolls_per_day": 10, "est_session_minutes": 4 },
+        { "min": 15, "max": 30, "total_tiles": 48, "function_tiles": 13, "property_tiles": 35, "avg_rolls_per_day": 14, "est_session_minutes": 5 }
+      ],
+      "_board_note": "棋盤放大是「一日一圈」的必然結果 — 每日走完一圈，圈太短會讓薪資注入過量。副作用是地產格大增：30 人桌人均從 0.9 格提升到 1.2 格，解決了原本『人人買不到地』的問題。"
+    }
+  },
+
+  "net_worth_threshold": {
+    "_doc": "取代舊的 M 值制。圈數在新架構下是動態的（blitz 2-12 圈、daily 21 圈），單一 M 值無法同時服務兩者 — 經濟規模差 5 倍以上。",
+    "formula": "max( (avg_starting_net_worth + lap_limit * avg_quarterly_salary) * income_multiplier , max_starting_net_worth * max_starting_multiplier )",
+    "income_multiplier": 2.5,
+    "max_starting_multiplier": 1.6,
+    "_first_term_note": "第一項 = 「開局身家 + 整局預估薪資注入」× 2.5。自動隨局長縮放，不需人工調參。",
+    "_second_term_note": "第二項是必要的下界。一位「富裕家庭 + 半導體工程師」起始總資產約 $2,350,000，沒有這條，短局會在第 1 回合就結束。",
+    "computed_at": "game_start",
+    "check_immediately_after_start": true,
+    "host_adjustable_range": 0.5,
+    "examples": [
+      { "mode": "blitz", "laps": 3,  "threshold": 2131500 },
+      { "mode": "blitz", "laps": 4,  "threshold": 2469000 },
+      { "mode": "blitz", "laps": 12, "threshold": 5169000 },
+      { "mode": "daily", "laps": 21, "threshold": 8206500 }
+    ],
+    "_example_basis": "以期望起始總資產 $447,600、加權平均季薪 $135,120 計算。"
+  },
+
+  "bankruptcy_threshold": {
+    "default_ratio": 0.20,
+    "rounding": "ceil",
+    "denominator": "player_count_at_start",
+    "crowded_override": {
+      "min_players": 21,
+      "ratio": 0.30,
+      "_note": "20 人以上局土地仍相對稀缺。棋盤放大到 48 格後壓力已下降，此參數需在 P1 模擬中重新評估是否仍有必要。"
+    },
+    "voluntary_quit_counts": false,
+    "_quit_note": "主動退出視同破產處理，但不計入結束條件 — 避免有人為了結束遊戲而故意退出。"
+  },
+
+  "net_worth_formula": "cash + sum(property_market_value) + sum(stock_market_value) + vehicle_residual - debt",
+  "_market_value_note": "地產市值 = 基價 + 累計升級投入。**認購溢價不計入** — 見 properties.json 的 claim 區塊。",
+
+  "bankruptcy": {
+    "liquidation_order": ["sell_stocks", "mortgage_properties", "sell_vehicle", "sell_properties_to_bank"],
+    "then_try_alliance_bailout": true,
+    "_bailout_note": "四步清算後仍為負，且該玩家有家庭/伴侶 → 進入隊友代償（alliances.json）。代償成功則不破產。",
+    "assets_return_to_unowned": true,
+    "_assets_note": "破產者資產歸還無主而非歸債權人。這是對零和信條的刻意例外 — 避免「打死一個人就吃掉他全部家產」的滾雪球讓局勢中期就鎖死。"
+  },
+
+  "loan": {
+    "_moved": "借貸產品已獨立為 config/loans.json（信用／房貸／股票質押／學貸／民間信貸）。此處僅保留全域上限。",
+    "total_debt_cap_ratio_of_net_worth": 1.5,
+    "compound": true
+  },
+
+  "treasury": {
+    "_note": "稅金投入國庫池，供紓困類事件卡支付。讓稅收在經濟上是暫存而非銷毀，維持零和信條。",
+    "starts_at": 0,
+    "can_go_negative": false
+  }
+}
