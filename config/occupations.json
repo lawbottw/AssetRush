@@ -1,0 +1,92 @@
+{
+  "version": "2026.08.3",
+  "_doc": "docs/02-game-balance.md §2 職業抽取、§7 職業發展",
+  "_anchor": "主計總處 113 年：經常性薪資中位數 $38,689、平均 $49,060。本表加權平均 $45,040（偏低 8%），刻意讓薪水略低於真實，以強化「靠薪水發不了財、地產才是主要致富路徑」的設計意圖。",
+  "_invariant": "weight 總和必須為 100。",
+
+  "occupations": [
+    {
+      "key": "service", "name": "服務餐飲", "tier": 1, "weight": 18,
+      "monthly_salary": 32000, "annual_bonus_months": 0,
+      "perks": [{ "type": "study_discount", "value": 0.3 }]
+    },
+    {
+      "key": "technician", "name": "製造技術員", "tier": 1, "weight": 15,
+      "monthly_salary": 38000, "annual_bonus_months": 1, "perks": []
+    },
+    {
+      "key": "admin", "name": "行政文書", "tier": 1, "weight": 14,
+      "monthly_salary": 36000, "annual_bonus_months": 1, "perks": []
+    },
+    {
+      "key": "sales", "name": "業務", "tier": 1, "weight": 12,
+      "monthly_salary": 35000, "annual_bonus_months": 0,
+      "perks": [{ "type": "commission_per_lap", "dice": "1d6", "multiplier": 8000 }]
+    },
+    {
+      "key": "freelancer", "name": "自由接案", "tier": 1, "weight": 5,
+      "monthly_salary_range": [30000, 90000], "reroll_each_lap": true,
+      "annual_bonus_months": 0, "perks": []
+    },
+    {
+      "key": "engineer", "name": "一般工程師", "tier": 2, "weight": 10,
+      "monthly_salary": 58000, "annual_bonus_months": 2, "perks": []
+    },
+    {
+      "key": "civil_servant", "name": "教師／公務員", "tier": 2, "weight": 8,
+      "monthly_salary": 48000, "annual_bonus_months": 1.5,
+      "perks": [{ "type": "pension_shield", "value": 200000, "_note": "破產清算時保留此金額" }]
+    },
+    {
+      "key": "medical", "name": "醫療（護理／藥師）", "tier": 2, "weight": 7,
+      "monthly_salary": 55000, "annual_bonus_months": 1,
+      "perks": [{ "type": "medical_cost_reduction", "value": 0.5 }]
+    },
+    {
+      "key": "finance", "name": "金融業", "tier": 2, "weight": 6,
+      "monthly_salary": 60000, "annual_bonus_months": 2,
+      "perks": [{ "type": "brokerage_fee_discount", "value": 0.5 }]
+    },
+    {
+      "key": "semiconductor", "name": "半導體工程師", "tier": 3, "weight": 5,
+      "monthly_salary": 85000, "annual_bonus_months": 6, "perks": []
+    }
+  ],
+
+  "education": {
+    "_note": "在學期間薪水減半。回本約 1.3 圈 — 4 圈的即時配對型偏晚才划算，7 圈的日常型明顯值得。此差異刻意造成兩模式的策略分岔。",
+    "courses": [
+      { "key": "vocational", "name": "職訓／證照班", "tuition": 60000, "turns": 2, "unlocks_tier": 2 },
+      { "key": "part_time_master", "name": "在職專班", "tuition": 250000, "turns": 3, "unlocks_tier": 3 },
+      { "key": "mba", "name": "MBA", "tuition": 800000, "turns": 4, "unlocks_tier": 3,
+        "permanent_salary_multiplier": 1.2 }
+    ],
+    "salary_multiplier_while_studying": 0.5,
+    "online_enroll_fee": 10000
+  },
+
+  "career_change": {
+    "same_tier_free": true,
+    "same_tier_limit_per_game": 2,
+    "upward_requires_education": true,
+    "downward_always_allowed": true
+  },
+
+  "side_jobs": {
+    "_note": "每局限選一項，選定後不可更換。接案外包成本 0 且期望值第二高，是刻意留給低資產玩家的翻身入口 — 代價是波動大，且佔掉唯一名額。",
+    "limit_per_game": 1,
+    "options": [
+      { "key": "online_reseller", "name": "網拍代購", "cost": 30000,
+        "income_per_turn": 3000, "expected_value": 3000 },
+      { "key": "group_buy", "name": "團購主", "cost": 80000,
+        "income_per_turn": 8000, "zero_chance": 0.10, "expected_value": 7200 },
+      { "key": "mlm", "name": "直銷", "cost": 150000,
+        "income_per_turn": 5000, "per_downline_income": 2000, "max_downlines": 3,
+        "stockpile_chance_per_lap": 0.08, "stockpile_cost": 50000, "expected_value": 4600 },
+      { "key": "freelance_gig", "name": "接案外包", "cost": 0,
+        "income_dice": "1d6", "income_multiplier": 2000, "expected_value": 7000 },
+      { "key": "property_mgmt", "name": "收租代管", "cost": 200000,
+        "rent_income_bonus": 0.10, "expected_value": null }
+    ]
+  }
+}

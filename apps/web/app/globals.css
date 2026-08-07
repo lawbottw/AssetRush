@@ -1,0 +1,205 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+
+  /* 市場語意（台股紅漲綠跌）— 見 docs/07 §2.3。絕不複用 destructive */
+  --color-market-up: var(--market-up);
+  --color-market-up-foreground: var(--market-up-foreground);
+  --color-market-up-subtle: var(--market-up-subtle);
+  --color-market-down: var(--market-down);
+  --color-market-down-foreground: var(--market-down-foreground);
+  --color-market-down-subtle: var(--market-down-subtle);
+  --color-market-flat: var(--market-flat);
+
+  /* 六大區域色帶 — 見 docs/07 §3 */
+  --color-region-north: var(--region-north);
+  --color-region-taoyuan: var(--region-taoyuan);
+  --color-region-central: var(--region-central);
+  --color-region-south: var(--region-south);
+  --color-region-kaoping: var(--region-kaoping);
+  --color-region-east: var(--region-east);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  --background: oklch(0.98 0.005 85);
+  --foreground: oklch(0.22 0.02 160);
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.02 160);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.22 0.02 160);
+
+  /* 主色：翡翠綠 — 金錢、成長、主 CTA */
+  --primary: oklch(0.62 0.15 162);
+  --primary-foreground: oklch(0.99 0.01 162);
+
+  /* 次色：暖砂 — 棋盤底、卡片背景 */
+  --secondary: oklch(0.94 0.03 85);
+  --secondary-foreground: oklch(0.3 0.04 85);
+
+  /* 強調：金桔橙 — 骰子、獎勵、次要 CTA */
+  --accent: oklch(0.72 0.17 55);
+  --accent-foreground: oklch(0.2 0.03 55);
+
+  --muted: oklch(0.95 0.01 85);
+  --muted-foreground: oklch(0.52 0.02 160);
+
+  /* 破壞性：朱紅 — 破產、扣款、刪除。不用於行情漲跌 */
+  --destructive: oklch(0.58 0.21 25);
+  --destructive-foreground: oklch(0.99 0.01 25);
+
+  --border: oklch(0.9 0.01 85);
+  --input: oklch(0.9 0.01 85);
+  --ring: oklch(0.62 0.15 162);
+  --radius: 0.75rem;
+
+  /* 台股語意：紅漲綠跌 */
+  --market-up: oklch(0.58 0.2 22);
+  --market-up-foreground: oklch(0.99 0.01 22);
+  --market-up-subtle: oklch(0.95 0.04 22);
+  --market-down: oklch(0.58 0.15 155);
+  --market-down-foreground: oklch(0.99 0.01 155);
+  --market-down-subtle: oklch(0.94 0.03 155);
+  --market-flat: oklch(0.55 0.01 160);
+
+  /* 六大區域 */
+  --region-north: oklch(0.55 0.16 265);
+  --region-taoyuan: oklch(0.62 0.12 200);
+  --region-central: oklch(0.72 0.15 70);
+  --region-south: oklch(0.58 0.16 35);
+  --region-kaoping: oklch(0.6 0.19 350);
+  --region-east: oklch(0.55 0.15 300);
+
+  --chart-1: oklch(0.62 0.15 162);
+  --chart-2: oklch(0.72 0.17 55);
+  --chart-3: oklch(0.55 0.16 265);
+  --chart-4: oklch(0.62 0.12 200);
+  --chart-5: oklch(0.55 0.15 300);
+
+  --sidebar: oklch(0.96 0.01 85);
+  --sidebar-foreground: oklch(0.22 0.02 160);
+  --sidebar-primary: oklch(0.62 0.15 162);
+  --sidebar-primary-foreground: oklch(0.99 0.01 162);
+  --sidebar-accent: oklch(0.94 0.03 85);
+  --sidebar-accent-foreground: oklch(0.3 0.04 85);
+  --sidebar-border: oklch(0.9 0.01 85);
+  --sidebar-ring: oklch(0.62 0.15 162);
+}
+
+.dark {
+  --background: oklch(0.19 0.02 160);
+  --foreground: oklch(0.95 0.01 85);
+
+  --card: oklch(0.24 0.02 160);
+  --card-foreground: oklch(0.95 0.01 85);
+  --popover: oklch(0.24 0.02 160);
+  --popover-foreground: oklch(0.95 0.01 85);
+
+  --primary: oklch(0.7 0.15 162);
+  --primary-foreground: oklch(0.16 0.03 162);
+
+  --secondary: oklch(0.3 0.02 85);
+  --secondary-foreground: oklch(0.92 0.02 85);
+
+  --accent: oklch(0.76 0.16 55);
+  --accent-foreground: oklch(0.18 0.03 55);
+
+  --muted: oklch(0.28 0.01 160);
+  --muted-foreground: oklch(0.68 0.02 160);
+
+  --destructive: oklch(0.65 0.19 25);
+  --destructive-foreground: oklch(0.98 0.01 25);
+
+  --border: oklch(0.32 0.01 160);
+  --input: oklch(0.32 0.01 160);
+  --ring: oklch(0.7 0.15 162);
+
+  --market-up: oklch(0.66 0.19 22);
+  --market-up-foreground: oklch(0.99 0.01 22);
+  --market-up-subtle: oklch(0.28 0.06 22);
+  --market-down: oklch(0.66 0.14 155);
+  --market-down-foreground: oklch(0.99 0.01 155);
+  --market-down-subtle: oklch(0.26 0.04 155);
+  --market-flat: oklch(0.62 0.01 160);
+
+  --region-north: oklch(0.66 0.15 265);
+  --region-taoyuan: oklch(0.72 0.11 200);
+  --region-central: oklch(0.78 0.14 70);
+  --region-south: oklch(0.68 0.15 35);
+  --region-kaoping: oklch(0.7 0.17 350);
+  --region-east: oklch(0.66 0.14 300);
+
+  --chart-1: oklch(0.7 0.15 162);
+  --chart-2: oklch(0.76 0.16 55);
+  --chart-3: oklch(0.66 0.15 265);
+  --chart-4: oklch(0.72 0.11 200);
+  --chart-5: oklch(0.66 0.14 300);
+
+  --sidebar: oklch(0.24 0.02 160);
+  --sidebar-foreground: oklch(0.95 0.01 85);
+  --sidebar-primary: oklch(0.7 0.15 162);
+  --sidebar-primary-foreground: oklch(0.16 0.03 162);
+  --sidebar-accent: oklch(0.3 0.02 85);
+  --sidebar-accent-foreground: oklch(0.92 0.02 85);
+  --sidebar-border: oklch(0.32 0.01 160);
+  --sidebar-ring: oklch(0.7 0.15 162);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}

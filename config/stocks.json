@@ -1,0 +1,135 @@
+{
+  "version": "2026.08.3",
+  "_doc": "docs/04-economy-and-realdata.md §2-3",
+
+  "_pricing_decision": "直接使用真實股價，不做映射。前一版採「統一基準價 $1,000 + 套用真實漲跌幅」，已廢除。改用真實價的理由見 docs/04 §3。seed_price 為 2026-08-05（民國 1150805）TWSE STOCK_DAY_ALL 的真實收盤價快照，非虛構資料 — 開發期直接當種子用，P5 接上每日同步後即由實際收盤價覆寫。",
+
+  "trading": {
+    "use_real_price": true,
+    "price_basis": "previous_close",
+    "_price_basis_note": "一律 T+1（前一交易日收盤價），全程無盤中報價。這消除了即時性壓力，也讓遊戲不觸碰延遲揭露規範。",
+    "min_unit_shares": 1,
+    "_unit_note": "以「股」而非「張」為單位。起始現金 $180,000 可買 74 股台積電或 1,734 股 0050 — 尺度成立。",
+    "brokerage_fee_rate": 0.001425,
+    "brokerage_fee_min": 20,
+    "transaction_tax_rate": 0.003,
+    "transaction_tax_on": "sell",
+    "max_single_holding_ratio": 0.60,
+    "allow_margin": false,
+    "allow_short": false,
+    "daily_return_clamp": 0.10
+  },
+
+  "trading_window": {
+    "_design": "股票不是棋盤格。交易併入「通過起點的季度事務」— 沒有時窗長度的概念，就是你辦季度事務時順手做的一件事。",
+    "trigger": "quarterly_affairs",
+    "once_per_lap": true,
+    "_removed": "證交所格已從棋盤移除。前兩版分別採用過『全域開盤鐘』與『過起點後 N 小時個人時窗』，都已廢除 — 前者要協調所有人、後者仍有時限壓力。",
+    "_rationale": "日常型 1 天 = 1 圈 = 1 次季度事務 = 1 次 T+1 價格更新。三者天然對齊，每天恰好一次交易機會，不早不晚。",
+    "blitz_non_blocking": true,
+    "_blitz_note": "即時配對型的季度事務是非阻塞側欄，可在別人回合時處理，不卡住牌桌。"
+  },
+
+  "price_advance": {
+    "daily": { "mode": "one_real_trading_day_per_lap",
+      "_note": "日常型 1 圈 = 1 天，天然對齊真實交易日。休市日沿用前一交易日收盤價。" },
+    "blitz": { "mode": "one_real_trading_day_per_lap",
+      "_note": "即時配對型的整局在真實世界只過了 20-45 分鐘，若不推進價格則股價紋風不動、股票淪為呆滯資產。改為每圈推進一個真實交易日，一局 4 圈即回放 4 天真實行情。開局時決定起始日期。" },
+    "_unified": "兩種模式皆為「每圈推進一個交易日」，規則一致。"
+  },
+
+  "dividend": {
+    "cycle_laps": 4,
+    "yield_per_year": 0.032,
+    "_note": "約當台股年均殖利率。以持股市值計算，不逐檔區分。"
+  },
+
+  "data_source": {
+    "provider": "TWSE OpenAPI",
+    "endpoint": "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL",
+    "auth_required": false,
+    "cost": 0,
+    "latency": "T+1",
+    "verified_at": "2026-08-06",
+    "seed_snapshot_date": "1150805",
+    "_caveats": [
+      "只回傳單日資料，歷史序列必須自己每天抓下來存",
+      "所有數值為 string，需自行轉型",
+      "Change 是漲跌『價差』不是百分比，漲跌幅需自算：Change / (ClosingPrice - Change)",
+      "停牌或無成交的個股價格欄位可能為 '--' 或空字串，必須防禦性解析",
+      "無 SLA、無穩定性保證",
+      "債券 ETF 與部分標的會下市或改代號（00679B 元大美債20年 已不在 2026-08 的清單中），標的清單需定期核對"
+    ]
+  },
+
+  "fallback": {
+    "_doc": "docs/04-economy-and-realdata.md §6",
+    "retry_times": ["15:30", "16:30", "17:30"],
+    "on_all_retries_failed": "hold_previous_close",
+    "on_extended_outage_days": 3,
+    "on_extended_outage_mode": "replay_historical_window",
+    "_note": "長期失效時回放已存下的歷史交易日序列，而非隨機生成 — 真實的歷史行情比模擬亂數更好，且我們本來就每天在存。"
+  },
+
+  "equities": [
+    { "code": "2330", "name": "台積電",     "sector": "半導體",   "seed_price": 2405 },
+    { "code": "2454", "name": "聯發科",     "sector": "半導體",   "seed_price": 4000 },
+    { "code": "2303", "name": "聯電",       "sector": "半導體",   "seed_price": 122 },
+    { "code": "3711", "name": "日月光投控", "sector": "半導體",   "seed_price": 593 },
+    { "code": "2379", "name": "瑞昱",       "sector": "半導體",   "seed_price": 751 },
+    { "code": "2317", "name": "鴻海",       "sector": "電子製造", "seed_price": 258.5 },
+    { "code": "2382", "name": "廣達",       "sector": "電子製造", "seed_price": 304 },
+    { "code": "2357", "name": "華碩",       "sector": "電子製造", "seed_price": 838 },
+    { "code": "2308", "name": "台達電",     "sector": "電子製造", "seed_price": 1650 },
+    { "code": "4938", "name": "和碩",       "sector": "電子製造", "seed_price": 89.5 },
+    { "code": "2881", "name": "富邦金",     "sector": "金融",     "seed_price": 129.5 },
+    { "code": "2882", "name": "國泰金",     "sector": "金融",     "seed_price": 100.5 },
+    { "code": "2891", "name": "中信金",     "sector": "金融",     "seed_price": 66 },
+    { "code": "2886", "name": "兆豐金",     "sector": "金融",     "seed_price": 51.2 },
+    { "code": "2884", "name": "玉山金",     "sector": "金融",     "seed_price": 38.1 },
+    { "code": "2801", "name": "彰銀",       "sector": "金融",     "seed_price": 23.65 },
+    { "code": "1301", "name": "台塑",       "sector": "傳產",     "seed_price": 56 },
+    { "code": "1303", "name": "南亞",       "sector": "傳產",     "seed_price": 177 },
+    { "code": "1326", "name": "台化",       "sector": "傳產",     "seed_price": 58.6 },
+    { "code": "2002", "name": "中鋼",       "sector": "傳產",     "seed_price": 18.9 },
+    { "code": "1101", "name": "台泥",       "sector": "傳產",     "seed_price": 24.05 },
+    { "code": "9910", "name": "豐泰",       "sector": "傳產",     "seed_price": 67.4 },
+    { "code": "2412", "name": "中華電",     "sector": "電信",     "seed_price": 137 },
+    { "code": "3045", "name": "台灣大",     "sector": "電信",     "seed_price": 110.5 },
+    { "code": "4904", "name": "遠傳",       "sector": "電信",     "seed_price": 101 },
+    { "code": "1216", "name": "統一",       "sector": "食品零售", "seed_price": 73.2 },
+    { "code": "2912", "name": "統一超",     "sector": "食品零售", "seed_price": 221.5 },
+    { "code": "2207", "name": "和泰車",     "sector": "汽車",     "seed_price": 509 },
+    { "code": "2603", "name": "長榮",       "sector": "航運",     "seed_price": 205 },
+    { "code": "2609", "name": "陽明",       "sector": "航運",     "seed_price": 50.6 }
+  ],
+
+  "etfs_passive": [
+    { "code": "0050",   "name": "元大台灣50",       "style": "市值型",   "seed_price": 103.8 },
+    { "code": "006208", "name": "富邦台50",         "style": "市值型",   "seed_price": 238.25 },
+    { "code": "0056",   "name": "元大高股息",       "style": "高股息",   "seed_price": 51.45 },
+    { "code": "00878",  "name": "國泰永續高股息",   "style": "高股息",   "seed_price": 33.15 },
+    { "code": "00919",  "name": "群益台灣精選高息", "style": "高股息",   "seed_price": 29.94 },
+    { "code": "00713",  "name": "元大台灣高息低波", "style": "低波動",   "seed_price": 61.1 },
+    { "code": "00646",  "name": "元大S&P500",       "style": "海外市值", "seed_price": 78.95 },
+    { "code": "00865B", "name": "國泰US短期公債",   "style": "債券",     "seed_price": 49.38 }
+  ],
+
+  "etfs_active": [
+    { "code": "00980A", "name": "主動野村臺灣優選", "style": "台股主動", "seed_price": 23.31 },
+    { "code": "00981A", "name": "主動統一台股增長", "style": "台股主動", "seed_price": 28.46 },
+    { "code": "00982A", "name": "主動群益台灣強棒", "style": "台股主動", "seed_price": 22.33 },
+    { "code": "00985A", "name": "主動野村台灣50",   "style": "台股主動", "seed_price": 21.46 },
+    { "code": "00990A", "name": "主動元大AI新經濟", "style": "AI主題",   "seed_price": 16.2 },
+    { "code": "00983A", "name": "主動中信ARK創新",  "style": "創新主題", "seed_price": 11.52 },
+    { "code": "00989A", "name": "主動摩根美國科技", "style": "海外科技", "seed_price": 17.33 },
+    { "code": "00402A", "name": "主動安聯美國科技", "style": "海外科技", "seed_price": 9.92 },
+    { "code": "00988A", "name": "主動統一全球創新", "style": "全球創新", "seed_price": 17.19 },
+    { "code": "00984A", "name": "主動安聯台灣高息", "style": "台股高息", "seed_price": 14.79 },
+    { "code": "00999A", "name": "主動野村臺灣高息", "style": "台股高息", "seed_price": 10.75 },
+    { "code": "00400A", "name": "主動國泰動能高息", "style": "台股高息", "seed_price": 13.69 }
+  ],
+
+  "_composition": "30 個股 + 8 被動 ETF + 12 主動式 ETF = 50 檔。主動式 ETF（代號結尾 A）是 2025-2026 台灣市場最熱門的新品類，全部為真實在市標的。",
+  "_active_etf_note": "主動式 ETF 在遊戲中的角色：波動高於被動 ETF、低於個股，是「不想選股又想要超額報酬」的中間選項。因為它們掛牌時間短、淨值多在 $10-30 區間，單價低、入手門檻低，適合低起點玩家。"
+}

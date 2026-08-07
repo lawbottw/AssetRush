@@ -1,0 +1,58 @@
+{
+  "version": "2026.08.3",
+  "_doc": "docs/02-game-balance.md §1 — 家境抽取。機率依主計總處家庭財富分配統計的偏斜形狀設定。",
+  "_invariant": "weight 總和必須為 100。期望起始總資產約 $447,600，此值被 endgame.json 的動態門檻公式引用。",
+
+  "backgrounds": [
+    {
+      "key": "indebted",
+      "name": "負債家庭",
+      "weight": 8,
+      "starting_cash": 50000,
+      "student_loan": 300000,
+      "student_loan_rate_per_lap": 0.005,
+      "grants": []
+    },
+    {
+      "key": "ordinary",
+      "name": "普通家庭",
+      "weight": 42,
+      "starting_cash": 180000,
+      "grants": []
+    },
+    {
+      "key": "comfortable",
+      "name": "小康家庭",
+      "weight": 30,
+      "starting_cash": 350000,
+      "grants": [
+        { "type": "stock", "pick": "random", "value": 150000 }
+      ]
+    },
+    {
+      "key": "middle_class",
+      "name": "中產家庭",
+      "weight": 15,
+      "starting_cash": 700000,
+      "grants": [
+        { "type": "property", "pick": "median_tier", "level": 0 }
+      ]
+    },
+    {
+      "key": "wealthy",
+      "name": "富裕家庭",
+      "weight": 5,
+      "starting_cash": 1500000,
+      "grants": [
+        { "type": "property", "pick": "top_quartile", "level": 0 },
+        { "type": "stock", "pick": "random", "value": 500000 }
+      ]
+    }
+  ],
+
+  "crowded_game_adjustment": {
+    "_note": "docs/02-game-balance.md §9 情境 E — 20 人以上局土地稀缺、租金流量兇殘，需上調起始現金避免過早破產。",
+    "min_players": 21,
+    "starting_cash_multiplier": 1.3
+  }
+}

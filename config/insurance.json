@@ -1,0 +1,46 @@
+{
+  "version": "2026.08.3",
+  "_doc": "docs/02-game-balance.md §8.2、docs/01-game-rules.md §11",
+  "_design": "四張保單都刻意設計成期望值為正。它們的角色是「風險管理教學」而非「賭博」— 玩家該學到的是「有資產就要保」，不是「保險是騙人的」。火險期望損失 $29,000 vs 保費 $6,000；醫療險期望理賠 $24,371 vs 保費 $12,000。",
+
+  "billing": {
+    "cycle_laps": 4,
+    "_note": "每 4 圈（1 遊戲年）於收入結算階段扣繳。",
+    "cancel_anytime": true,
+    "refund_on_cancel": false
+  },
+
+  "policies": [
+    {
+      "key": "health", "name": "醫療險",
+      "premium_per_year": 12000,
+      "covers_category": "medical",
+      "payout_ratio": 0.80,
+      "payout_cap": null
+    },
+    {
+      "key": "accident", "name": "意外險",
+      "premium_per_year": 8000,
+      "covers_category": "accident",
+      "payout_ratio": 1.00,
+      "payout_cap": 200000
+    },
+    {
+      "key": "fire", "name": "住宅火險",
+      "premium_per_year": 6000,
+      "covers_category": "disaster",
+      "payout_ratio": 1.00,
+      "payout_cap": null,
+      "_note": "未投保時天災可讓地產直接降一級且不退還升級成本。火險的意義不是省小錢，是避免資產結構被一張卡打壞。"
+    },
+    {
+      "key": "liability", "name": "責任險",
+      "premium_per_year": 15000,
+      "covers_category": "penalty",
+      "payout_ratio": 0.60,
+      "payout_cap": null
+    }
+  ],
+
+  "_sponsorship_slot": "保險是品牌置入最自然的入口（見 docs/00-product-overview.md §7.2）。政策名稱與視覺可由後台掛品牌，但費率與理賠比例不得因贊助改變。"
+}

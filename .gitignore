@@ -1,0 +1,39 @@
+# dependencies
+node_modules/
+.pnpm-store/
+.venv/
+__pycache__/
+*.py[cod]
+
+# builds
+.next/
+out/
+dist/
+build/
+*.egg-info/
+
+# test / tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# env
+.env
+.env.*
+!.env.example
+
+# 模擬輸出（make simulate）
+apps/api/sim-out/
+
+# 個人的 Claude Code 設定（.claude/settings.json 是共用的，要進版控）
+.claude/settings.local.json
+
+# editors / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json

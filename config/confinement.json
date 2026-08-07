@@ -1,0 +1,100 @@
+{
+  "version": "2026.08.3",
+  "_doc": "docs/01-game-rules.md §5.6-5.7 監獄與醫院",
+
+  "mode_caps": {
+    "blitz_max_turns": 1,
+    "daily_max_turns": 3,
+    "_note": "即時配對型一局只有 20-40 個回合，關 2 回合等於 10% 的遊戲直接消失。日常型一天一回合，關 2 天雖然痛但整局有 21 天，比例合理。所有刑期/住院日在即時配對型一律壓到 1 回合。"
+  },
+
+  "_design": "監禁與住院都是「跳過回合」，但兩者的懲罰結構刻意不同：坐牢扣薪水一半但照收租（你的資產不會因為你進去而消失）；住院完全沒薪水但可用保險大幅減輕。前者懲罰的是「時間」，後者懲罰的是「沒保險」。",
+
+  "jail": {
+    "name": "監獄",
+    "is_board_tile": true,
+    "landing_effect": "visiting",
+    "_landing_note": "單純走到監獄格 = 探監，不會被關。只有命運卡會把你送進去。",
+
+    "while_confined": {
+      "can_roll_dice": false,
+      "can_move": false,
+      "collects_rent": true,
+      "salary_multiplier": 0.5,
+      "can_trade_property": true,
+      "can_trade_stock": true,
+      "can_upgrade_property": true,
+      "can_study": false,
+      "can_apply_credit_loan": false,
+      "can_open_quarterly_affairs": false,
+      "_quarterly_note": "服刑期間走不到起點，所以整段期間沒有季度事務 — 領不到季薪、不能買賣股票、不能申請貸款。這是坐牢真正痛的地方，比薪水減半更實質。",
+      "_note": "資產照常運作（照收租、地產可交易升級），只是你人被關住。這讓坐牢是節奏懲罰而非資產毀滅 — 被關 3 回合不該等於出局。"
+    },
+
+    "release": {
+      "roll_to_escape": 6,
+      "_roll_note": "每個被跳過的回合仍可擲一次骰，擲出 6 立即出獄（但該回合不移動）。",
+      "bail_formula": "20000 * remaining_turns",
+      "max_turns": 3,
+      "auto_release_after_max": true
+    },
+
+    "sentences": {
+      "drunk_driving": 2,
+      "fraud": 1,
+      "tax_evasion": 3,
+      "insider_trading": 2
+    }
+  },
+
+  "hospital": {
+    "name": "醫院",
+    "is_board_tile": true,
+    "landing_effect": "checkup",
+    "landing_checkup": {
+      "cost": 5000,
+      "grants_buff": "next_medical_claim_bonus",
+      "buff_value": 0.10,
+      "_note": "走到醫院格 = 健康檢查，小額支出換取下次醫療理賠 +10%。鼓勵玩家不要把醫院格當成純負面。"
+    },
+
+    "while_hospitalized": {
+      "can_roll_dice": false,
+      "can_move": false,
+      "collects_rent": true,
+      "salary_multiplier": 0.0,
+      "_salary_note": "住院期間完全沒有薪水（病假無薪）。這是與坐牢最大的差異，也是醫療險存在的理由。",
+      "can_trade_property": false,
+      "can_trade_stock": true,
+      "can_upgrade_property": false,
+      "can_study": false
+    },
+
+    "admission": {
+      "max_turns": 2,
+      "insurance_reduces_turns": true,
+      "insured_turn_formula": "max(1, floor(base_turns / 2))",
+      "_insurance_note": "有醫療險 → 住院回合數減半（無條件捨去，最少 1 回合），且醫療費理賠 80%。無保險住院 2 回合 + 全額自付，是遊戲中最痛的組合之一。"
+    },
+
+    "early_discharge": {
+      "allowed": true,
+      "cost_formula": "50000 * remaining_turns",
+      "_note": "自費提前出院。有錢就能買回時間 — 這很真實，也讓現金流充裕的玩家有額外選項。"
+    },
+
+    "admissions": {
+      "surgery": 2,
+      "car_accident": 2,
+      "illness": 1,
+      "overwork": 1
+    }
+  },
+
+  "shared": {
+    "counts_as_turn_for_window_advance": true,
+    "_window_note": "被關/住院的玩家在日常型下仍佔用一個回合時窗（會被自動快速跳過），不會打亂全桌的時窗排程。",
+    "standing_orders_still_apply": true,
+    "_so_note": "被限制期間，能做的動作（收租、股票、升級）仍依 Standing Orders 執行。"
+  }
+}

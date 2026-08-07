@@ -1,0 +1,106 @@
+{
+  "version": "2026.08.3",
+  "_doc": "docs/01-game-rules.md §17 家庭系統、docs/02-game-balance.md §11",
+
+  "_design": "組隊改變的是「風險」而不是「勝利條件」。隊內互不收租 + 破產前隊友強制代償 = 大幅降低破產風險；代價是家用支出、稅率加成、以及分潤稀釋個人資產。勝負仍以個人總資產排名，避免 8 人組隊變成速勝手段。這也符合主題：家庭讓你更安全，但也更難暴富。",
+
+  "tiers": [
+    {
+      "key": "couple", "name": "情侶", "size": 2,
+      "formation_cost": 0,
+      "internal_rent_multiplier": 0.5,
+      "household_fee_ratio": 0.05,
+      "profit_share_ratio": 0.10,
+      "tax_surcharge": 0.0,
+      "bailout_obligation": 0.3,
+      "dissolve_cost": 0,
+      "_note": "無成本、可隨時分手。輕量入口，讓玩家先體驗機制。"
+    },
+    {
+      "key": "married", "name": "已婚", "size": 2,
+      "formation_cost": 300000,
+      "formation_cost_budget": 50000,
+      "_cost_note": "辦婚禮 $300,000 或公證結婚 $50,000。辦婚禮者獲得「親友禮金」= 全桌人數 × $12,000。人多的局辦婚禮才划算 — 這個取捨本身就很真實。",
+      "internal_rent_multiplier": 0.0,
+      "household_fee_ratio": 0.10,
+      "profit_share_ratio": 0.25,
+      "tax_surcharge": 0.10,
+      "bailout_obligation": 1.0,
+      "dissolve_cost": 150000,
+      "dissolve_asset_split": 0.5,
+      "_dissolve_note": "離婚：律師費 $150,000 + 雙方總資產對分。代價高到讓「要不要結婚」是個真決策。"
+    },
+    {
+      "key": "family_small", "name": "家庭（3-4人）", "size_range": [3, 4],
+      "requires": "至少一對已婚成員為核心",
+      "formation_cost_per_member": 100000,
+      "internal_rent_multiplier": 0.0,
+      "household_fee_ratio": 0.15,
+      "profit_share_ratio": 0.30,
+      "tax_surcharge": 0.20,
+      "bailout_obligation": 1.0,
+      "dissolve_cost": 0,
+      "_note": "退出需家庭多數同意。"
+    },
+    {
+      "key": "family_large", "name": "大家庭（5-8人）", "size_range": [5, 8],
+      "requires": "至少一對已婚成員為核心",
+      "formation_cost_per_member": 100000,
+      "internal_rent_multiplier": 0.0,
+      "household_fee_ratio": 0.20,
+      "profit_share_ratio": 0.35,
+      "tax_surcharge": 0.40,
+      "bailout_obligation": 1.0,
+      "dissolve_cost": 0
+    }
+  ],
+
+  "max_size": 8,
+  "_max_size_note": "使用者指定上限。超過 8 人的家庭會讓隊內免租的覆蓋面過大 — 32 格棋盤上 8 人可能持有半數地產，對外部玩家形成無解的租金牆。",
+
+  "mechanics": {
+    "household_fee": {
+      "basis": "quarterly_salary",
+      "charged_at": "income_settlement",
+      "frequency": "per_lap",
+      "goes_to": "family_pool",
+      "_note": "每圈收入結算時，每位成員繳交季薪的 household_fee_ratio 進家庭基金。"
+    },
+    "profit_share": {
+      "basis": "rent_income",
+      "_note": "成員該圈的租金收入按 profit_share_ratio 進基金，局末或每 4 圈按持份分配。持份 = 累計繳交的家用佔基金總繳交額的比例。"
+    },
+    "bailout": {
+      "_doc": "這是「共同負擔盈虧」的實質",
+      "trigger": "成員完成四步清算後現金仍為負",
+      "order": ["family_pool", "members_cash_pro_rata"],
+      "member_cash_cap": 0.5,
+      "_cap_note": "隊友單次代償上限為其現金的 50%，避免一人拖垮全家。",
+      "on_failure": {
+        "member_bankrupts": true,
+        "family_penalty_cash_ratio": 0.10,
+        "_note": "代償失敗 → 該成員破產，且全隊「家道中落」：所有成員損失 10% 現金。組隊不是無風險的。"
+      }
+    },
+    "internal_trade": {
+      "property_transfer_allowed": false,
+      "_note": "家庭成員之間不可轉移地產。否則 8 人可把地產集中到一人身上刷區域壟斷，破壞壟斷機制的難度設計。現金、股票可自由轉移。"
+    },
+    "scoring": {
+      "primary": "individual_net_worth",
+      "also_display": "family_net_worth",
+      "endgame_threshold_applies_to": "individual",
+      "_note": "結束條件的資產門檻看個人，不看家庭總和。組隊不能靠人多直接衝線。"
+    }
+  },
+
+  "formation": {
+    "requires_mutual_consent": true,
+    "proposal_ttl_hours": 48,
+    "proposal_ttl_seconds_blitz": 60,
+    "max_switches_per_game": 2,
+    "_switch_note": "整局最多變更關係 2 次（含分手、離婚、加入或退出家庭），防止玩家依局勢反覆重組。"
+  },
+
+  "_balance_watch": "P1 蒙地卡羅必須驗證：組隊者與單身者的勝率差距 < 8 個百分點。若組隊明顯較強，優先調高 tax_surcharge 與 household_fee_ratio，而非削弱 bailout — 代償是這個系統存在的意義。"
+}

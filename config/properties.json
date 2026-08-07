@@ -1,0 +1,116 @@
+{
+  "version": "2026.08.3",
+  "_doc": "docs/02-game-balance.md §3 地產、docs/01-game-rules.md §6",
+
+  "levels": [
+    { "level": 0, "name": "素地",       "upgrade_cost_ratio": null, "rent_ratio": 0.06 },
+    { "level": 1, "name": "套房",       "upgrade_cost_ratio": 0.50, "rent_ratio": 0.15 },
+    { "level": 2, "name": "公寓",       "upgrade_cost_ratio": 0.70, "rent_ratio": 0.30 },
+    { "level": 3, "name": "大樓",       "upgrade_cost_ratio": 1.00, "rent_ratio": 0.55 },
+    { "level": 4, "name": "商辦／飯店", "upgrade_cost_ratio": 1.50, "rent_ratio": 0.90 }
+  ],
+  "_level_note": "累計租金/投入比為 6.0% → 10.0% → 13.6% → 17.2% → 19.1%。遞增讓升級始終有價值，但邊際遞減，避免「無腦全衝 L4」成為唯一解。",
+
+  "acquisition": {
+    "_doc": "docs/01-game-rules.md §6.2 — 購地方式依模式分岔",
+    "blitz": {
+      "mode": "instant",
+      "_note": "即時嚴格輪流，同一時間只有一人決策，不會衝突 → 立即成交。"
+    },
+    "daily": {
+      "mode": "claim_auction",
+      "_note": "非同步連續行動下，兩人可能在同一天走到同一塊無主地。這是整個系統唯一不可並行的動作，因此改為出價認購 + 每日仲裁。"
+    }
+  },
+
+  "claim": {
+    "_doc": "docs/01-game-rules.md §6.3 出價認購",
+    "_design": "順序感沒有消失，而是從『排隊』變成『競標』。走到一格會看到「阿宏今天已出價 $150,000，要加價嗎？」— 互動反而比排隊更強，而且很真實，房市本來就是這樣。",
+
+    "min_bid": "base_price",
+    "freezes_cash_on_bid": true,
+    "settlement_time": "00:00",
+    "winner": "highest_bid",
+    "tiebreak": "daily_turn_order",
+    "_tiebreak_note": "回合順位每日輪替，只在同價時生效 — 這是順位在新機制下唯一的作用。",
+    "loser_refund_ratio": 1.0,
+
+    "tile_remains_unowned_until_settlement": true,
+    "_unowned_note": "結算前該格仍為無主：當日稍後走到的人可以競標，且不付租金。這讓規則乾淨，也讓『今天有幾個人在搶』成為可見的資訊。",
+
+    "premium_counts_toward_market_value": false,
+    "premium_counts_toward_rent": false,
+    "premium_counts_toward_mortgage": false,
+    "_premium_note": "★ 溢價是純沉沒成本。租金、抵押額度、市值一律依基價計算。這是整個機制的平衡核心 — 它讓加價自然收斂，不會演變成有錢人無限碾壓。也是零和信條的延伸：多付的錢沒有變成資產。",
+
+    "max_bids_per_player_per_day": null,
+    "_max_bids_note": "不設上限。一天走一圈會經過多塊無主地，限制次數只會製造挫折；現金凍結本身就是天然的限制。",
+
+    "visible_to_others": {
+      "bid_count": true,
+      "highest_bid_amount": true,
+      "bidder_identity": true
+    },
+    "_visibility_note": "全部公開。隱藏出價會讓競標變成盲猜，而我們要的是「看到對手在搶所以我要加價」的張力。"
+  },
+
+  "upgrade": {
+    "must_be_sequential": true,
+    "requires_landing_on_tile": false,
+    "_note": "不要求停在自己的地才能升級。日常型一天一圈，強制落地會讓資本運作跟不上節奏。",
+    "conflicts": "none",
+    "_conflict_note": "升級自己的地不與任何人衝突，所以永遠即時生效，不走認購。"
+  },
+
+  "financing": {
+    "_doc": "使用者要求：買房的格子時也可以決定是否要貸房貸",
+    "purchase_with_mortgage": true,
+    "upgrade_with_mortgage": true,
+    "_note": "購地與升級時提供「以房貸支付」選項，當場開立一筆 loans.json 的 mortgage 貸款。額度仍受該產品規則約束（未抵押地產市值 × 60%）。",
+    "mortgage_covers_premium": false,
+    "_premium_note": "認購溢價不可貸款 — 銀行只認基價。想加價搶地就得掏現金，這讓溢價的抑制作用更強。"
+  },
+
+  "monopoly": {
+    "grouping": "county",
+    "rent_multiplier": 2.0,
+    "broken_by_mortgage": true,
+    "_note": "以縣市而非六大區域分組。同縣市通常 2-4 格，達成難度剛好；用區域則一組要 4 格以上，太難。"
+  },
+
+  "mortgage": {
+    "_note": "此處為「把地抵押給銀行換現金」，與 loans.json 的房屋抵押貸款是不同機制 — 抵押後失去租金，房貸則保留租金但地產被設為擔保品。",
+    "receive_ratio": 0.50,
+    "redeem_ratio": 0.55,
+    "blocks_rent": true,
+    "blocks_upgrade": true,
+    "blocks_monopoly": true
+  },
+
+  "sale": {
+    "to_bank_ratio": 0.70,
+    "_note": "刻意設低，讓玩家間交易比賣回銀行划算，鼓勵互動。"
+  },
+
+  "market_value": {
+    "formula": "base_price + invested",
+    "depreciates": false,
+    "excludes_claim_premium": true
+  },
+
+  "trade": {
+    "requires_mutual_consent": true,
+    "max_pending_offers_per_player": 5,
+    "freezes_assets_while_pending": true,
+    "tradeable": ["cash", "property", "stock", "vehicle", "rent_free_voucher"],
+    "rent_free_voucher": {
+      "_note": "承諾 N 圈內免收對方租金，系統強制執行。存在的理由是讓弱勢方有非資產的談判籌碼。",
+      "max_laps": 4
+    },
+    "antitrust_warning": {
+      "enabled": true,
+      "blocks_trade": false,
+      "_note": "只揭露不阻止 — 避免新手被坑，同時保留談判樂趣。"
+    }
+  }
+}
