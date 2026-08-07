@@ -1,19 +1,62 @@
+import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from assetrush import __version__
+from assetrush.config import get_settings
+from assetrush.console import force_utf8_output, setup_app_logging
+from assetrush.db import DatabaseNotConfiguredError, dispose_engine, ping
 from assetrush.routers import health
+
+# 必須在 uvicorn 建立 logging handler 之前——handler 會綁定當下的 sys.stderr。
+force_utf8_output()
+
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """啟動時驗證一次 Supabase 連線。
+
+    刻意**不因為連不上就 crash**：M0 還沒有任何依賴 DB 的端點，讓 `make dev`
+    因為網路抖動整個起不來只會妨礙前端開發。M4 接上持久層後改成 fail-fast。
+    """
+    # 在這裡而非 import 期間：要等 uvicorn 先設定好 logging 才借得到它的 handler
+    setup_app_logging()
+    settings = get_settings()
+
+    try:
+        latency = await ping()
+    except DatabaseNotConfiguredError as exc:
+        logger.warning("Supabase 未設定：%s", exc)
+    except Exception as exc:  # noqa: BLE001 — 連線失敗的型別依 driver 而異
+        logger.error(
+            "Supabase 連線失敗（%s）：%s: %s｜檢查 .env 的 DATABASE_URL 與網路連線",
+            settings.supabase_ref,
+            type(exc).__name__,
+            exc,
+        )
+    else:
+        logger.info("Supabase 連線正常（%s，%.0f ms）", settings.supabase_ref, latency)
+
+    yield
+
+    await dispose_engine()
+
 
 app = FastAPI(
     title="AssetRush API",
     version=__version__,
     description="遊戲狀態的唯一擁有者。所有規則判定都在 engine/（鐵律 1）。",
+    lifespan=lifespan,
 )
 
-# M0 只開發期用；正式環境的來源清單在 issue #5 接上環境變數後收斂。
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=get_settings().frontend_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

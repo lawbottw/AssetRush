@@ -8,6 +8,10 @@ dependencies = [
     "uvicorn[standard]>=0.34",
     "pydantic>=2.10",
     "pydantic-settings>=2.7",
+    # DB 走 SQLAlchemy + asyncpg 而非 supabase-py：鐵律 3 的 advisory lock
+    # 需要原生 SQL（`select pg_advisory_xact_lock(...)`），PostgREST 做不到。
+    "sqlalchemy[asyncio]>=2.0",
+    "asyncpg>=0.30",
 ]
 
 [dependency-groups]
@@ -37,6 +41,7 @@ select = [
     "I",             # isort
     "UP",            # pyupgrade
     "B",             # bugbear
+    "BLE",           # blind-except：捕捉裸 Exception 要有明確理由
     "SIM",           # simplify
     "TID",           # tidy-imports
     "RUF",

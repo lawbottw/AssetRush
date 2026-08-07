@@ -37,6 +37,7 @@
 | 08 | [開發路線圖](08-roadmap.md) | P0–P7 階段、**為什麼是這個順序**、v1 排除清單 |
 | 09 | [LINE 整合](09-line-integration.md) | Mini App 申請設定、群組資料的界線、Flex Message、送審 |
 | 10 | [Milestone 規劃](10-milestones.md) | **M0–M11 交付清單**、Config 驅動的實作契約、Onboarding 流程 |
+| 11 | [身分與驗證](11-auth-and-identity.md) | Supabase Auth、LINE 登入、訪客（匿名）、session、機密邊界 |
 
 `01` 描述**機制**、`02` 描述**數字**、`../config/*.json` 是**可執行的真實來源**。三者必須同步。
 

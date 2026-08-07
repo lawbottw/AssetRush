@@ -66,8 +66,14 @@ jobs:
         run: uv run pytest -q
 
   frontend:
-    name: frontend（eslint / tsc / vitest / build）
+    name: frontend（eslint / tsc / vitest / build / 機密外洩）
     runs-on: ubuntu-latest
+    # 用假值建置。CI 刻意不連真實 Supabase——打外部服務會變成不穩定的紅燈
+    # 來源，而 build 本來就不需要真實位址（client 是 lazy 建立的）。
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
     steps:
       - uses: actions/checkout@v5
 
@@ -93,6 +99,15 @@ jobs:
         working-directory: apps/frontend
         run: pnpm test
 
+      - name: 機密命名檢查
+        working-directory: apps/frontend
+        run: pnpm check-secrets
+
       - name: next build
         working-directory: apps/frontend
         run: pnpm build
+
+      # ★ 必須在 build 之後：檢查編譯產物裡沒有 service_role key
+      - name: 機密外洩檢查（產物）
+        working-directory: apps/frontend
+        run: pnpm check-secrets:build
