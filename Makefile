@@ -12,7 +12,7 @@ BACKEND_PORT  ?= 8000
 .DEFAULT_GOAL := help
 .PHONY: help install dev dev-frontend dev-backend build build-frontend build-backend \
         test test-frontend test-backend lint lint-frontend lint-backend \
-        check-engine format clean ci
+        check-engine check-db format clean ci
 
 help:               ## 列出所有 target
 	@echo "AssetRush make targets:"
@@ -43,6 +43,7 @@ build: build-backend build-frontend  ## 建置前後端
 
 build-frontend:
 	cd $(FRONTEND) && pnpm build
+	cd $(FRONTEND) && pnpm check-secrets:build
 
 build-backend:
 	cd $(BACKEND) && uv build
@@ -58,7 +59,10 @@ test-frontend:
 check-engine:       ## ★ 鐵律 2：engine/ 零 I/O 邊界檢查
 	cd $(BACKEND) && uv run python scripts/check_engine_purity.py
 
-lint: check-engine lint-backend lint-frontend  ## engine 邊界 + ruff + mypy + eslint + tsc
+check-db:           ## 驗證 Supabase 連線（需要網路，刻意不掛在 lint 下）
+	cd $(BACKEND) && uv run python scripts/check_db.py
+
+lint: check-engine lint-backend lint-frontend  ## engine 邊界 + 機密外洩 + ruff + mypy + eslint + tsc
 
 lint-backend:
 	cd $(BACKEND) && uv run ruff check .
@@ -68,6 +72,7 @@ lint-backend:
 lint-frontend:
 	cd $(FRONTEND) && pnpm lint
 	cd $(FRONTEND) && pnpm typecheck
+	cd $(FRONTEND) && pnpm check-secrets
 
 ci: lint test build ## 本地跑一遍 CI 會跑的東西
 

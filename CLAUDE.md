@@ -182,6 +182,7 @@ ETF 下市與改代號比想像中頻繁（`00679B` 已於 2026-08 消失），`
 | [docs/08-roadmap.md](docs/08-roadmap.md) | 開發階段（為什麼是這個順序） |
 | [docs/09-line-integration.md](docs/09-line-integration.md) | LINE Mini App 設定、群組資料界線、送審 |
 | [docs/10-milestones.md](docs/10-milestones.md) | **M0–M11 交付清單、Config 驅動契約、Onboarding** |
+| [docs/11-auth-and-identity.md](docs/11-auth-and-identity.md) | Supabase Auth、LINE 登入、訪客（匿名）、機密邊界 |
 
 改規則時：`01` 描述機制、`02` 描述數字、`config/` 是可執行的真實來源。三者必須同步。
 
