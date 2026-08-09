@@ -74,13 +74,16 @@
 
   "side_jobs": {
     "_note": "每局限選一項，選定後不可更換。接案外包成本 0 且期望值第二高，是刻意留給低資產玩家的翻身入口 — 代價是波動大，且佔掉唯一名額。",
+    "_v1_scope": "v1 啟用四種：online_reseller / group_buy / freelance_gig / property_mgmt。mlm（直銷）延到 v1.1。",
     "limit_per_game": 1,
     "options": [
       { "key": "online_reseller", "name": "網拍代購", "cost": 30000,
         "income_per_turn": 3000, "expected_value": 3000 },
       { "key": "group_buy", "name": "團購主", "cost": 80000,
         "income_per_turn": 8000, "zero_chance": 0.10, "expected_value": 7200 },
-      { "key": "mlm", "name": "直銷", "cost": 150000,
+      { "key": "mlm", "name": "直銷", "enabled": false,
+        "_v1_1": "🔜 不進 v1（issue #7 範圍切割）。五種副業裡唯一需要 NPC 下線追蹤的，且綁事件卡 O12「拉到下線」 — 其餘四種都是「每圈收益」的變體，共用同一條路徑。停用時 O12 一併移除（見 config/events.json）。規格原封保留，v1.1 啟用時把 enabled 改 true 並把 O12 加回機會牌堆。見 docs/01 §9.4。",
+        "cost": 150000,
         "income_per_turn": 5000, "per_downline_income": 2000, "max_downlines": 3,
         "stockpile_chance_per_lap": 0.08, "stockpile_cost": 50000, "expected_value": 4600 },
       { "key": "freelance_gig", "name": "接案外包", "cost": 0,

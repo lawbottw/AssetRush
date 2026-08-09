@@ -4,7 +4,9 @@
 
   "_access": "貸款不是棋盤格。申請與還款都在「通過起點的季度事務」辦理，唯一例外是購地/升級時可當場開立房貸（見 origination_points）。",
 
-  "_design": "取代前一版單一的「總資產 × 50%」額度。改為多種貸款各有核貸依據 — 有薪水的人靠信用貸款、有地產的人靠抵押、有股票的人靠質押。這讓「我現在缺錢該怎麼辦」在不同資產結構下有不同答案，也讓玩家實際體驗到「銀行看的是你有什麼，不是你需要多少」。",
+  "_design": "取代前一版單一的「總資產 × 50%」額度。改為多種貸款各有核貸依據 — 有薪水的人靠信用貸款、有地產的人靠抵押。這讓「我現在缺錢該怎麼辦」在不同資產結構下有不同答案，也讓玩家實際體驗到「銀行看的是你有什麼，不是你需要多少」。",
+
+  "_v1_scope": "v1 啟用四種產品：credit / mortgage / student_loan / private_lender。stock_pledge（有股票的人靠質押）延到 v1.1 — 見該產品的 _v1_1 說明與 docs/01 §12.2。",
 
   "products": [
     {
@@ -29,6 +31,8 @@
     {
       "key": "stock_pledge",
       "name": "股票質押",
+      "enabled": false,
+      "_v1_1": "🔜 不進 v1（issue #7 範圍切割）。五種貸款裡唯一有追繳機制的產品，需要每回合監控持股市值並可能觸發強制賣出 — 那是一條新的機制路徑，其餘四種共用同一條借款／計息／還款流程。規格原封保留，v1.1 啟用時把 enabled 改 true 即可。見 docs/01 §12.2。",
       "underwriting_basis": "holdings",
       "limit_formula": "sum(holdings_market_value) * 0.50",
       "rate_per_lap": 0.015,
@@ -58,8 +62,9 @@
   "origination_points": {
     "_doc": "使用者要求：買房的格子時也可以決定是否要貸房貸",
     "quarterly_affairs": {
-      "products": ["credit", "mortgage", "stock_pledge", "private_lender"],
-      "_note": "通過起點時可申請或償還任何產品。"
+      "products": ["credit", "mortgage", "private_lender"],
+      "_note": "通過起點時可申請或償還任何產品。",
+      "_v1_1_note": "stock_pledge 已於 v1 停用（見上方 products[stock_pledge].enabled），因此不列於此。v1.1 啟用時要一併加回。"
     },
     "on_property_purchase": {
       "products": ["mortgage"],
