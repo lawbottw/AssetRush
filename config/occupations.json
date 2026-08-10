@@ -225,7 +225,16 @@
   ],
 
   "education": {
-    "_note": "在學期間薪水減半。回本約 1.3 圈 — 4 圈的即時配對型偏晚才划算，7 圈的日常型明顯值得。此差異刻意造成兩模式的策略分岔。",
+    "_note": "在學期間薪水減半。課程完成時才揭曉成效：50% 是有效進修，50% 是包裝成進修的割韭菜產品，學費與時間都打水飄。進修不再是穩定套利，而是高風險翻身路徑。",
+    "outcome": {
+      "roll_at": "completion",
+      "success_chance": 0.5,
+      "failure_chance": 0.5,
+      "success_result": "unlock_course_reward",
+      "failure_result": "no_unlock_no_promotion_no_skill",
+      "refund_on_failure": false,
+      "_note": "失敗代表課程內容包裝精美但沒有實質能力提升，例如「XX 天學會 AI」類產品。玩家仍已付學費並消耗在學圈數。"
+    },
     "courses": [
       { "key": "vocational", "name": "職訓／證照班", "tuition": 60000, "turns": 2, "unlocks_tier": 2 },
       { "key": "part_time_master", "name": "在職專班", "tuition": 250000, "turns": 3, "unlocks_tier": 3 },

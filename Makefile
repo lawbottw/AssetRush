@@ -12,7 +12,8 @@ BACKEND_PORT  ?= 8000
 .DEFAULT_GOAL := help
 .PHONY: help install dev dev-frontend dev-backend build build-frontend build-backend \
         test test-frontend test-backend lint lint-frontend lint-backend \
-        check-engine check-db format clean ci
+        check-engine check-db validate-config seed-config sync-balance-doc \
+        check-balance-doc m1-check format clean ci
 
 help:               ## 列出所有 target
 	@echo "AssetRush make targets:"
@@ -59,10 +60,22 @@ test-frontend:
 check-engine:       ## ★ 鐵律 2：engine/ 零 I/O 邊界檢查
 	cd $(BACKEND) && uv run python scripts/check_engine_purity.py
 
+validate-config:    ## ★ M1：驗證 config/*.json schema 與跨檔不變式
+	cd $(BACKEND) && uv run python scripts/validate_config.py --config-dir ../../config
+
+seed-config:        ## ★ M1：config/*.json → game_configs（需要 DB）
+	cd $(BACKEND) && uv run python scripts/seed_config.py --config-dir ../../config --activate
+
+sync-balance-doc:   ## ★ M1：用 config/*.json 更新 docs/02 的數值摘要
+	cd $(BACKEND) && uv run python scripts/sync_balance_doc.py --config-dir ../../config --doc ../../docs/02-game-balance.md --write
+
+check-balance-doc:  ## ★ M1：檢查 docs/02 的 config 摘要是否同步
+	cd $(BACKEND) && uv run python scripts/sync_balance_doc.py --config-dir ../../config --doc ../../docs/02-game-balance.md --check
+
 check-db:           ## 驗證 Supabase 連線（需要網路，刻意不掛在 lint 下）
 	cd $(BACKEND) && uv run python scripts/check_db.py
 
-lint: check-engine lint-backend lint-frontend  ## engine 邊界 + 機密外洩 + ruff + mypy + eslint + tsc
+lint: check-engine validate-config check-balance-doc lint-backend lint-frontend  ## engine 邊界 + config + docs 同步 + 機密外洩 + ruff + mypy + eslint + tsc
 
 lint-backend:
 	cd $(BACKEND) && uv run ruff check .
@@ -73,6 +86,12 @@ lint-frontend:
 	cd $(FRONTEND) && pnpm lint
 	cd $(FRONTEND) && pnpm typecheck
 	cd $(FRONTEND) && pnpm check-secrets
+
+m1-check: check-engine validate-config check-balance-doc  ## M1 收尾驗證（不碰 DB）
+	cd $(BACKEND) && uv run pytest tests/test_engine_core_types.py tests/test_formula.py tests/test_effect_registry.py tests/test_config_loader.py tests/test_config_acceptance.py tests/test_seed_config.py tests/test_sync_balance_doc.py tests/test_m1_config_probe.py tests/test_engine_purity.py
+	cd $(BACKEND) && uv run ruff check .
+	cd $(BACKEND) && uv run ruff format --check .
+	cd $(BACKEND) && uv run mypy src scripts
 
 ci: lint test build ## 本地跑一遍 CI 會跑的東西
 
