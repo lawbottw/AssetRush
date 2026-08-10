@@ -71,6 +71,16 @@
     "_premium_note": "認購溢價不可貸款 — 銀行只認基價。想加價搶地就得掏現金，這讓溢價的抑制作用更強。"
   },
 
+  "holding_tax": {
+    "enabled": true,
+    "rate_per_lap": 0.005,
+    "basis": "market_value",
+    "charged_at": "income_settlement",
+    "paid_to": "treasury",
+    "applies_to": ["owned_property", "mortgaged_property", "loan_collateral_property"],
+    "_note": "每圈收取地產持有稅，稅基為市值（base_price + invested，不含認購溢價）。0.5%/圈約等於 2%/遊戲年（4 圈），足以讓囤地有持有成本，但不會壓過租金收益。"
+  },
+
   "monopoly": {
     "grouping": "county",
     "rent_multiplier": 2.0,

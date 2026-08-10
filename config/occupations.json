@@ -1,55 +1,226 @@
 {
   "version": "2026.08.3",
   "_doc": "docs/02-game-balance.md §2 職業抽取、§7 職業發展",
-  "_anchor": "主計總處 113 年：經常性薪資中位數 $38,689、平均 $49,060。本表加權平均 $45,040（偏低 8%），刻意讓薪水略低於真實，以強化「靠薪水發不了財、地產才是主要致富路徑」的設計意圖。",
+  "_anchor": "主計總處 113 年：經常性薪資中位數 $38,689、平均 $49,060。本表固定薪資加權平均約 $46,660（偏低 5%），但網紅與房仲沒有底薪，需靠職業技能取得變動收入。工程師不再區分半導體與非半導體。",
   "_invariant": "weight 總和必須為 100。",
 
   "occupations": [
     {
-      "key": "service", "name": "服務餐飲", "tier": 1, "weight": 18,
+      "key": "service", "name": "服務業", "tier": 1, "weight": 13,
       "monthly_salary": 32000, "annual_bonus_months": 0,
-      "perks": [{ "type": "study_discount", "value": 0.3 }]
+      "main_skill": {
+        "key": "extra_shift",
+        "name": "臨時排班",
+        "trigger": "other_player_lands_on_leisure",
+        "effect": { "type": "gain", "amount": 3000 },
+        "_note": "其他玩家踩到任何娛樂/休閒格時，服務業玩家獲得 $3,000。代表臨時排班、小費、加班與店家分潤；不扣健康。"
+      },
+      "perks": [
+        { "type": "study_discount", "value": 0.3 },
+        { "type": "leisure_discount", "value": 0.15, "applies_to": ["restaurant", "movie"] }
+      ]
     },
     {
-      "key": "technician", "name": "製造技術員", "tier": 1, "weight": 15,
-      "monthly_salary": 38000, "annual_bonus_months": 1, "perks": []
+      "key": "creator", "name": "網紅", "tier": 1, "weight": 6,
+      "monthly_salary": 0, "annual_bonus_months": 0,
+      "main_skill": {
+        "key": "content_flywheel",
+        "name": "流量飛輪",
+        "trigger": "lap_settlement_and_content_events",
+        "effect": { "type": "fan_base_income" },
+        "_note": "靠粉絲數產生每圈訂閱/團購收入；機會、命運、旅遊都可變成內容素材，提高粉絲。"
+      },
+      "perks": [
+        {
+          "type": "fan_base_income",
+          "starting_fans": 500,
+          "income_per_1000_fans_per_lap": 1200,
+          "income_cap_per_lap": 20000,
+          "fan_growth_per_lap": 250,
+          "fan_growth_on_opportunity": 150,
+          "fan_growth_on_fate": 200,
+          "fan_growth_on_travel": 500,
+          "_note": "網紅收入由粉絲數決定，不依玩家數直接調整。起初收入很低；每圈自然小幅成長，遇到機會/命運/旅遊時因發布內容而額外增加粉絲。"
+        },
+        { "type": "travel_content_luck_bonus", "value": 1, "laps": 1 }
+      ],
+      "drawbacks": [
+        { "type": "income_event_volatility", "fate_weight_multiplier": 1.2, "category": "income" }
+      ]
     },
     {
-      "key": "admin", "name": "行政文書", "tier": 1, "weight": 14,
-      "monthly_salary": 36000, "annual_bonus_months": 1, "perks": []
+      "key": "real_estate_agent", "name": "房仲", "tier": 1, "weight": 11,
+      "monthly_salary": 0, "annual_bonus_months": 0,
+      "main_skill": {
+        "key": "property_commission",
+        "name": "房產佣金",
+        "trigger": "property_purchase_or_player_property_trade",
+        "effect": {
+          "type": "real_estate_brokerage",
+          "direct_purchase": {
+            "buyer_opt_in": true,
+            "buyer_discount": 0.10,
+            "commission_rate": 0.06,
+            "commission_paid_by": "buyer",
+            "commission_basis": "original_purchase_price",
+            "service_fee_added_to_buyer_cost": true,
+            "buyer_selects_agent": true
+          },
+          "player_trade": {
+            "mandatory": true,
+            "buyer_commission_rate": 0.03,
+            "seller_commission_rate": 0.03,
+            "agent_selection": "random_if_multiple_agents"
+          },
+          "self_trade_commission_exempt": true
+        },
+        "_note": "房仲沒有底薪。直接購買地產時，買家可選擇指定一名房仲：地產成交價打 9 折，但買家另付原價 6% 服務費給房仲；例如 $1,000,000 房子，支付 $900,000 給系統並另付 $60,000 給房仲，總成本 $960,000。買家可拒絕使用房仲。玩家間房屋交易強制向買賣雙方各收 3% 佣金，多名房仲時隨機抽一名。房仲自身交易房屋免佣金。"
+      },
+      "perks": [{ "type": "self_property_trade_commission_exempt", "value": true }]
     },
     {
-      "key": "sales", "name": "業務", "tier": 1, "weight": 12,
-      "monthly_salary": 35000, "annual_bonus_months": 0,
-      "perks": [{ "type": "commission_per_lap", "dice": "1d6", "multiplier": 8000 }]
+      "key": "engineer", "name": "工程師", "tier": 3, "weight": 22,
+      "monthly_salary": 75000, "annual_bonus_months": 6,
+      "main_skill": {
+        "key": "route_optimizer",
+        "name": "路線最佳化",
+        "trigger": "after_roll_before_movement",
+        "limit_per_lap": 1,
+        "effect": { "type": "adjust_final_steps", "options": [-1, 0, 1], "cannot_stack_above_plus_one_with_vehicle": true },
+        "_note": "每圈一次，擲骰後可把最終步數調整 -1/0/+1；若有車，最多仍只能到骰點 +1，不能疊成 +2。"
+      },
+      "perks": []
     },
     {
-      "key": "freelancer", "name": "自由接案", "tier": 1, "weight": 5,
-      "monthly_salary_range": [30000, 90000], "reroll_each_lap": true,
-      "annual_bonus_months": 0, "perks": []
-    },
-    {
-      "key": "engineer", "name": "一般工程師", "tier": 2, "weight": 10,
-      "monthly_salary": 58000, "annual_bonus_months": 2, "perks": []
-    },
-    {
-      "key": "civil_servant", "name": "教師／公務員", "tier": 2, "weight": 8,
+      "key": "civil_servant", "name": "公務員", "tier": 2, "weight": 12,
       "monthly_salary": 48000, "annual_bonus_months": 1.5,
-      "perks": [{ "type": "pension_shield", "value": 200000, "_note": "破產清算時保留此金額" }]
+      "main_skill": {
+        "key": "public_tender",
+        "name": "公共標案",
+        "trigger": "quarterly_affairs",
+        "cooldown_laps": 2,
+        "effect": {
+          "type": "public_tender",
+          "tender_amount": 1000000,
+          "profit_rate_range": [0.60, 0.80],
+          "winner_gross_revenue_formula": "tender_amount * (1 + rolled_profit_rate)",
+          "winner_net_profit_after_fee_formula": "tender_amount * rolled_profit_rate - tender_amount * civil_servant_handling_fee_rate",
+          "selection": "weighted_score",
+          "civil_servant_cannot_participate": true,
+          "civil_servant_handling_fee_rate": 0.30,
+          "civil_servant_fee_basis": "tender_amount",
+          "civil_servant_fee_paid_by": "winner",
+          "requires_participant_cash": "tender_amount",
+          "abandon_if_no_eligible_participants": true,
+          "abandon_if_funding_insufficient": true,
+          "remaining_tender_amount_basis": "tender_amount_after_civil_servant_fee",
+          "score_basis": {
+            "mode": "proportional_weighted_score",
+            "pool_formula": "tender_amount * (1 - civil_servant_handling_fee_rate)",
+            "description": "標案金額扣除公務員 30% 承辦費後，剩餘 70% 作為履約評分與得標權重基礎。"
+          },
+          "tender_pool": [
+            { "key": "public_construction", "name": "公共工程標案", "theme": "道路、人行道、公園或公共設施改善" },
+            { "key": "digital_service", "name": "數位服務標案", "theme": "政府網站、系統維護、資料建置或資安服務" },
+            { "key": "community_program", "name": "社區活動標案", "theme": "節慶活動、地方創生、觀光推廣或市集營運" },
+            { "key": "medical_procurement", "name": "醫療採購標案", "theme": "健檢、疫苗、醫療耗材或緊急應變物資" }
+          ]
+        },
+        "_note": "每 2 圈可開一個公共標案。系統從 tender_pool 抽出標案主題，公務員不能自己接標案；其他玩家自行決定是否以 $1,000,000 標案金額參與，現金不足者不能參與，沒有合格參與者則放棄。得標者總收入為標案金額 + 60%–80% 毛利；公務員向得標者收取標案金額 30% 作為承辦費；剩餘 70% 作為履約評分與得標權重基礎。"
+      },
+      "perks": [
+        { "type": "pension_shield", "value": 200000, "_note": "破產清算時保留此金額" }
+      ]
     },
     {
-      "key": "medical", "name": "醫療（護理／藥師）", "tier": 2, "weight": 7,
+      "key": "medical", "name": "醫療", "tier": 2, "weight": 10,
       "monthly_salary": 55000, "annual_bonus_months": 1,
-      "perks": [{ "type": "medical_cost_reduction", "value": 0.5 }]
+      "main_skill": {
+        "key": "medical_system_management",
+        "name": "醫療體系經營",
+        "trigger": "hospital_tile_or_medical_service_payment",
+        "effect": {
+          "type": "medical_system_revenue_pool",
+          "revenue_sources": [
+            "pass_or_land_on_hospital_tile_checkup",
+            "disease_medical_cost",
+            "accident_medical_cost",
+            "emergency_treatment",
+            "early_discharge",
+            "pregnancy_or_childbirth_medical_cost"
+          ],
+          "provider_selection": "shared_pool_if_multiple_medical_players",
+          "revenue_share_to_medical_pool": 1.0,
+          "split_method": "equal_share_among_medical_players",
+          "pay_to_system_if_no_medical_player": true
+        },
+        "_note": "醫療職業共同經營醫療體系。玩家經過或停在醫院格需支付健檢費；疾病、車禍、急救、提前出院、懷孕生產等醫療支出也支付給醫療體系。多名醫療職業時進入共同收入池並平均分潤；場上沒有醫療職業時，費用支付給系統。"
+      },
+      "perks": [
+        { "type": "medical_cost_reduction", "value": 0.5 },
+        { "type": "health_check_discount", "value": 0.5 }
+      ]
     },
     {
-      "key": "finance", "name": "金融業", "tier": 2, "weight": 6,
+      "key": "finance", "name": "金融業", "tier": 2, "weight": 11,
       "monthly_salary": 60000, "annual_bonus_months": 2,
-      "perks": [{ "type": "brokerage_fee_discount", "value": 0.5 }]
+      "main_skill": {
+        "key": "private_lending",
+        "name": "私人放貸",
+        "trigger": "cash_shortfall_property_purchase_or_forced_payment",
+        "effect": {
+          "type": "finance_private_lending",
+          "max_amount_formula": "min(shortfall_amount, lender_available_cash_after_reserve)",
+          "requires_lender_cash_reserve": 100000,
+          "repay_laps": 4,
+          "rate_per_lap": 0.030,
+          "negotiable_terms": ["amount", "repay_laps", "collateral"],
+          "available_when": ["quarterly_affairs", "cash_shortfall", "pre_bankruptcy"]
+        },
+        "_note": "銀行貸款之外，只有金融業職業玩家可以私下放貸。其他玩家買地、付租金、罰款、稅金、最低應繳或破產前現金不足時，可向金融業提出借款；金融業可拒絕、議價或要求擔保。一般玩家之間不能互相借貸。"
+      },
+      "perks": []
     },
     {
-      "key": "semiconductor", "name": "半導體工程師", "tier": 3, "weight": 5,
-      "monthly_salary": 85000, "annual_bonus_months": 6, "perks": []
+      "key": "lawyer", "name": "律師", "tier": 2, "weight": 8,
+      "monthly_salary": 65000, "annual_bonus_months": 2,
+      "main_skill": {
+        "key": "legal_defense",
+        "name": "法律代理",
+        "trigger": "other_player_legal_case_fine_or_liability",
+        "effect": {
+          "type": "legal_representation",
+          "provider_fee": 80000,
+          "success_chance_bonus": 0.40,
+          "applies_to": [
+            "lawsuit",
+            "contract_dispute",
+            "fine",
+            "traffic_ticket",
+            "debt_collection",
+            "compensation_claim",
+            "car_accident_liability"
+          ]
+        },
+        "_note": "其他玩家遇到交易爭議、訴訟、罰款、追債、賠償或車禍責任時，可一次性支付 $80,000 委任律師。律師讓該法律流程的有利結果機率 +40%，並取得服務費。律師不能替自己收服務費。"
+      },
+      "perks": []
+    },
+    {
+      "key": "insurance_agent", "name": "保險業務", "tier": 2, "weight": 7,
+      "monthly_salary": 42000, "annual_bonus_months": 1,
+      "main_skill": {
+        "key": "policy_sales_commission",
+        "name": "保單佣金",
+        "trigger": "policy_purchase",
+        "effect": {
+          "type": "policy_sales_commission",
+          "commission_rate": 0.10,
+          "agent_selection": "random_if_multiple_agents"
+        },
+        "_note": "任何玩家購買保險時，保險業務抽取該次保費 10% 佣金；若有多名保險業務，隨機抽取一名。沒有理賠 +10% 設定。"
+      },
+      "perks": []
     }
   ],
 

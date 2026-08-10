@@ -3,19 +3,45 @@
   "_doc": "docs/02-game-balance.md §5 機會與命運卡表",
   "_mechanics": "抽後放回（每次獨立抽取，不做牌堆）。NW = 該玩家當前總資產、Q = 季薪、M = 月薪。使用相對值的卡片能自動適應貧富差距。",
   "_invariant": "opportunity 與 fate 的 weight 各自總和為 100。",
-  "_v1_scope": "O12「拉到下線」已於 issue #7 移除 — 它要求 requires_side_job: mlm，而直銷延到 v1.1，留著就是永遠不觸發的死卡。釋出的 4 點權重併入 O04。v1.1 加回直銷時要一併把 O12 加回並從 O04 扣回 4 點。原卡：{ id: O12, name: 拉到下線, weight: 4, effect: { type: mlm_downline, count: 1, requires_side_job: mlm } }",
+  "_v1_scope": "O12「拉到下線」已於 issue #7 移除 — 它要求 requires_side_job: mlm，而直銷延到 v1.1，留著就是永遠不觸發的死卡。issue #8 補入 O23「創業合夥邀約」後，機會卡仍維持 22 張、權重總和 100。v1.1 若加回直銷，需要重新分配 opportunity 權重。原卡：{ id: O12, name: 拉到下線, weight: 4, effect: { type: mlm_downline, count: 1, requires_side_job: mlm } }",
+
+  "legal_resolution": {
+    "_note": "法律事件不做每圈隨機觸發，而是掛在命運卡與既有負面事件上。玩家遇到交易爭議、訴訟、罰單、追債、賠償或車禍責任時，可付 $80,000 委任律師。律師使有利結果機率 +40%。未委任時，重大案件可能轉成鉅額賠償或司法處分/監禁型的長期不能行動。",
+    "lawyer_fee": 80000,
+    "represented_success_bonus": 0.40,
+    "case_severity": {
+      "minor": { "immobilized_turns": 0, "huge_compensation_formula": "base_amount" },
+      "civil": { "immobilized_turns": 2, "huge_compensation_formula": "max(base_amount * 1.5, NW * 0.06)" },
+      "major": { "immobilized_turns": 5, "huge_compensation_formula": "max(base_amount * 2, NW * 0.12)" },
+      "criminal": { "immobilized_turns": 10, "huge_compensation_formula": "max(base_amount * 3, NW * 0.20)" }
+    },
+    "case_unrepresented": {
+      "success_chance": 0.20,
+      "huge_compensation_chance": 0.55,
+      "immobilized_chance": 0.25
+    },
+    "case_represented": {
+      "success_chance": 0.60,
+      "huge_compensation_chance": 0.35,
+      "immobilized_chance": 0.05
+    },
+    "minor_fine_represented": {
+      "cancel_chance": 0.70,
+      "failure_result": "pay_original_fine"
+    }
+  },
 
   "opportunity": [
-    { "id": "O01", "name": "年終加碼",       "weight": 8, "effect": { "type": "gain", "formula": "Q * 0.5" } },
-    { "id": "O02", "name": "投資獲利了結",   "weight": 7, "effect": { "type": "gain", "formula": "NW * 0.03" } },
+    { "id": "O01", "name": "年終加碼",       "weight": 7, "effect": { "type": "gain", "formula": "Q * 0.5" } },
+    { "id": "O02", "name": "投資獲利了結",   "weight": 6, "effect": { "type": "gain", "formula": "NW * 0.03" } },
     { "id": "O03", "name": "統一發票中獎",   "weight": 6, "effect": { "type": "gain", "amount": 20000 } },
-    { "id": "O04", "name": "政府紓困",       "weight": 10, "effect": { "type": "gain_from_treasury", "formula": "max(0, (avg_NW - NW) * 0.20)" },
+    { "id": "O04", "name": "政府紓困",       "weight": 8, "effect": { "type": "gain_from_treasury", "formula": "max(0, (avg_NW - NW) * 0.20)" },
       "_note": "對低資產者更有利的補償閥之一。池空則無效果。",
-      "_weight_history": "6 → 10（issue #7）。承接 O12「拉到下線」移除後釋出的 4 點。選這張是因為它從國庫支付（不破壞零和信條）、只對低於平均者有效、且國庫空時無效果，是提高權重時副作用最小的一張。⚠️ M3 觀察項：這使均衡閥變強，模擬要確認沒有過度壓縮領先者優勢（對照 P1 Q1 家境與最終排名的相關係數 < 0.35）。" },
+      "_weight_history": "6 → 10（issue #7）→ 8（issue #8）。O23「創業合夥邀約」加入後回收部分權重。M3 仍需觀察政府紓困是否過度壓縮領先者優勢（對照 P1 Q1 家境與最終排名的相關係數 < 0.35）。" },
     { "id": "O05", "name": "消費券",         "weight": 5, "effect": { "type": "gain_from_treasury", "amount": 30000 } },
     { "id": "O06", "name": "房仲報好康",     "weight": 5, "effect": { "type": "buff", "key": "next_purchase_discount", "value": 0.20 } },
-    { "id": "O07", "name": "內線消息",       "weight": 4, "effect": { "type": "reveal_stock_direction", "false_chance": 0.20, "applies_at": "next_quarterly_affairs" },
-      "_note": "20% 為假消息。於下次季度事務的股票交易畫面揭露。若依此消息交易後被 F23 抽中，刑期不減 — 這是刻意的黑色幽默。" },
+    { "id": "O07", "name": "生活補助",       "weight": 4, "effect": { "type": "gain_from_treasury", "amount": 30000 },
+      "_note": "issue #8 後機會卡不再提供投資/內線消息；改為純補助型事件，維持 opportunity 權重總和不變。投資消息不進 v1。" },
     { "id": "O08", "name": "業績獎金",       "weight": 6, "effect": { "type": "gain", "formula": "M * 1" } },
     { "id": "O09", "name": "前進三格",       "weight": 5, "effect": { "type": "move", "steps": 3, "trigger_landing": true } },
     { "id": "O10", "name": "提前收工",       "weight": 4, "effect": { "type": "move_to_tile", "kind": "start", "trigger_landing": true },
@@ -31,27 +57,40 @@
     { "id": "O20", "name": "停車免費",       "weight": 5, "effect": { "type": "buff", "key": "skip_vehicle_upkeep_this_lap" } },
     { "id": "O21", "name": "銀行優惠專案",   "weight": 2, "effect": { "type": "buff", "key": "loan_rate_discount_this_lap", "value": 0.005 } },
     { "id": "O22", "name": "聯誼認識新朋友", "weight": 2, "effect": { "type": "free_alliance_proposal", "tier": "couple" },
-      "_note": "可立即向任一玩家發出情侶邀請，對方接受則免形成成本。組隊系統的引導入口。" }
+      "_note": "可立即向任一玩家發出情侶邀請，對方接受則免形成成本。組隊系統的引導入口。" },
+    { "id": "O23", "name": "創業合夥邀約",   "weight": 4,
+      "effect": {
+        "type": "risky_investment_offer",
+        "amount_formula": "clamp(NW * 0.20 + available_loan_capacity * 0.10, 100000, 1000000)",
+        "can_decline": true,
+        "outcomes": [
+          { "key": "real_investment", "weight": 30, "return_ratio": 1.60, "payout_after_laps": 2 },
+          { "key": "fraud", "weight": 70, "loss_ratio": 1.00, "category": "fraud", "insurance_covered": false }
+        ]
+      },
+      "_note": "不是投資消息或內線提示，而是可拒絕的高風險邀約。金額依身家與剩餘貸款能力縮放，避免富人覺得無感、窮人直接出局。若為真投資，2 圈後取得約定報酬；若為詐騙，投入本金全數損失且不受任何保險理賠。" }
   ],
 
   "fate": [
-    { "id": "F01", "name": "感冒就醫",   "weight": 6, "category": "medical",  "effect": { "type": "pay", "amount": 8000 } },
-    { "id": "F02", "name": "住院手術",   "weight": 4, "category": "medical",  "effect": { "type": "pay", "amount": 180000 }, "hospitalize": 2 },
-    { "id": "F03", "name": "牙齒矯正",   "weight": 4, "category": "medical",  "effect": { "type": "pay", "amount": 120000 } },
-    { "id": "F21", "name": "過勞住院",   "weight": 3, "category": "medical",  "effect": { "type": "pay", "amount": 40000 }, "hospitalize": 1 },
+    { "id": "F01", "name": "住宿加收服務費", "weight": 6, "category": "social",   "effect": { "type": "pay", "amount": 8000 } },
+    { "id": "F02", "name": "親友緊急借款",   "weight": 4, "category": "social",   "effect": { "type": "pay", "amount": 180000 } },
+    { "id": "F03", "name": "房屋臨時修繕",   "weight": 4, "category": "accident", "effect": { "type": "pay", "amount": 120000 } },
+    { "id": "F21", "name": "工作過勞停工",   "weight": 3, "category": "income",   "effect": { "type": "pay", "amount": 40000 } },
 
-    { "id": "F04", "name": "車禍受傷",   "weight": 5, "category": "accident", "effect": { "type": "pay", "amount": 150000, "halved_if_no_vehicle": true }, "hospitalize": 2 },
-    { "id": "F05", "name": "手機摔壞",   "weight": 9, "category": "accident", "effect": { "type": "pay", "amount": 25000 } },
+    { "id": "F04", "name": "車禍受傷",   "weight": 5, "category": "accident", "effect": { "type": "pay", "amount": 150000, "paid_to": "medical_system", "halved_if_no_vehicle": true, "legal_issue": "car_accident_liability", "contestable_by": "lawyer" }, "hospitalize": 2 },
+    { "id": "F05", "name": "手機摔壞",   "weight": 8, "category": "accident", "effect": { "type": "pay", "amount": 25000 } },
     { "id": "F06", "name": "家中失竊",   "weight": 4, "category": "accident", "effect": { "type": "pay", "formula": "NW * 0.02" } },
 
-    { "id": "F07", "name": "超速罰單",   "weight": 8, "category": "penalty",  "effect": { "type": "pay", "formula": "6000 * (1 + move_bonus)" } },
+    { "id": "F07", "name": "超速罰單",   "weight": 8, "category": "penalty",  "effect": { "type": "pay", "formula": "6000 * (1 + used_vehicle_extra_step)", "legal_issue": "traffic_ticket", "contestable_by": "lawyer" } },
     { "id": "F08", "name": "稅務稽查",   "weight": 4, "category": "penalty",  "effect": { "type": "pay_to_treasury", "formula": "NW * 0.04" } },
     { "id": "F09", "name": "違建拆除",   "weight": 3, "category": "penalty",  "effect": { "type": "downgrade_property", "pick": "choice", "count": 1 } },
-    { "id": "F10", "name": "訴訟纏身",   "weight": 3, "category": "penalty",  "effect": { "type": "pay", "amount": 250000 } },
+    { "id": "F10", "name": "訴訟纏身",   "weight": 3, "category": "penalty",  "effect": { "type": "legal_case", "legal_issue": "lawsuit", "base_amount": 250000, "severity": "major", "contestable_by": "lawyer" } },
+    { "id": "F25", "name": "交易爭議",   "weight": 3, "category": "penalty",  "effect": { "type": "legal_case", "legal_issue": "contract_dispute", "base_amount": 100000, "severity": "civil", "contestable_by": "lawyer" } },
 
     { "id": "F11", "name": "颱風災損",   "weight": 4, "category": "disaster", "effect": { "type": "downgrade_property", "pick": "random", "count": 1 } },
     { "id": "F12", "name": "地震",       "weight": 2, "category": "disaster", "effect": { "type": "downgrade_property", "pick": "all", "chance_each": 0.30 } },
     { "id": "F13", "name": "淹水",       "weight": 4, "category": "disaster", "effect": { "type": "pay", "amount": 60000 } },
+    { "id": "F24", "name": "住宅火災",   "weight": 3, "category": "disaster", "effect": { "type": "downgrade_property", "pick": "random", "count": 1, "requires_owned_property": true } },
 
     { "id": "F14", "name": "酒駕被捕",   "weight": 3, "category": "jail",     "effect": { "type": "pay", "amount": 80000 }, "jail": 2 },
     { "id": "F15", "name": "捲入詐騙案", "weight": 2, "category": "jail",     "effect": { "type": "none" }, "jail": 1 },
@@ -64,18 +103,18 @@
     { "id": "F18", "name": "股災",       "weight": 4, "category": "market",   "effect": { "type": "stock_shock", "value": -0.08, "scope": "self" } },
     { "id": "F19", "name": "房市降溫",   "weight": 3, "category": "market",   "effect": { "type": "rent_modifier", "value": 0.70, "laps": 1, "scope": "all_players" } },
 
-    { "id": "F20", "name": "紅包炸彈",   "weight": 11, "category": "social",  "effect": { "type": "pay", "amount": 30000, "doubled_if_players_above": 10 } }
+    { "id": "F20", "name": "紅包炸彈",   "weight": 6, "category": "social",  "effect": { "type": "pay", "amount": 30000, "doubled_if_players_above": 10 } }
   ],
 
   "_fate_category_weights": {
-    "medical": 17, "accident": 18, "penalty": 18, "disaster": 10,
-    "jail": 7, "income": 12, "market": 7, "social": 11,
-    "_note": "medical=17 與 disaster=10 被 docs/02-game-balance.md §8.2 的保險期望值試算引用。調整這兩類的權重時必須同步重算保費，否則保單會從『期望值為正』變成『期望值為負』，破壞保險系統的設計意圖。"
+    "accident": 21, "penalty": 21, "disaster": 13,
+    "jail": 7, "income": 15, "market": 7, "social": 16,
+    "_note": "issue #8 後一般疾病移出命運卡，改為每圈健康檢定。此處權重仍總和 100；醫療險保費需改由 health 檢定表重算，放到 M3。"
   },
   "_confinement_summary": {
-    "hospitalize_total_weight": 12,
+    "hospitalize_total_weight": 5,
     "jail_total_weight": 7,
-    "_note": "一圈約踩到命運格 0.56 次，一年（4 圈）約 2.24 次抽卡 → 每年期望住院 0.27 次、入獄 0.16 次。頻率刻意壓低：跳過回合是遊戲中最不好玩的懲罰，它應該是記憶點而不是常態。"
+    "_note": "一般疾病不再由命運格觸發，住院主要來自每圈健康檢定；命運卡僅保留事故型住院。頻率刻意壓低：跳過回合是遊戲中最不好玩的懲罰，它應該是記憶點而不是常態。"
   },
 
   "tax_office": {
@@ -90,5 +129,5 @@
     "_surcharge_note": "家庭成員的稅率另乘 (1 + alliances.json 的 tax_surcharge)。這是組隊系統的主要平衡閥。"
   },
 
-  "_removed_exchange_tile": "證交所格已移除。股票交易改於「通過起點的季度事務」辦理，內線消息（O07）改為在下次季度事務時揭露。"
+  "_removed_exchange_tile": "證交所格已移除。股票交易改於「通過起點的季度事務」辦理。issue #8 後機會卡不再提供投資消息或內線消息。"
 }

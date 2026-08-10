@@ -26,7 +26,8 @@
       "weight": 30,
       "starting_cash": 350000,
       "grants": [
-        { "type": "stock", "pick": "random", "value": 150000 }
+        { "type": "stock", "pick": "random", "value": 150000 },
+        { "type": "vehicle", "pick": "scooter", "chance": 0.10 }
       ]
     },
     {
@@ -35,7 +36,8 @@
       "weight": 15,
       "starting_cash": 700000,
       "grants": [
-        { "type": "property", "pick": "median_tier", "level": 0 }
+        { "type": "property", "pick": "median_tier", "level": 0 },
+        { "type": "vehicle", "pick": "scooter_or_domestic", "chance": 0.20 }
       ]
     },
     {
@@ -45,10 +47,19 @@
       "starting_cash": 1500000,
       "grants": [
         { "type": "property", "pick": "top_quartile", "level": 0 },
-        { "type": "stock", "pick": "random", "value": 500000 }
+        { "type": "stock", "pick": "random", "value": 500000 },
+        { "type": "vehicle", "pick": "domestic", "chance": 0.35 }
       ]
     }
   ],
+
+  "starting_non_cash_state": {
+    "_doc": "config/wellbeing.json",
+    "health": "draw_from_wellbeing_starting_range",
+    "luck": "draw_from_wellbeing_starting_weights",
+    "insurance": "none",
+    "_insurance_note": "v1 不允許起手自帶保險。保險必須在第一次季度事務主動購買，讓玩家明確做出風險管理選擇。"
+  },
 
   "crowded_game_adjustment": {
     "_note": "docs/02-game-balance.md §9 情境 E — 20 人以上局土地稀缺、租金流量兇殘，需上調起始現金避免過早破產。",

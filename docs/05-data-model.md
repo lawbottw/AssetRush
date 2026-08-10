@@ -277,7 +277,7 @@ daily_turn_order = (base_turn_order + current_day) % alive_player_count
 ### 4.3 `board_tiles` — 本局固化的棋盤
 
 ```sql
--- 只有 6 種功能格 + property。exchange / dmv_academy 已移除（改由季度事務承擔）
+-- 7 種功能格 + property。exchange / dmv_academy 已移除（改由季度事務承擔）
 create type tile_kind as enum
   ('start','property','opportunity','fate','tax','jail','hospital');
 
