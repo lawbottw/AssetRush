@@ -50,12 +50,14 @@
   "hospital": {
     "name": "醫院",
     "is_board_tile": true,
+    "tile_trigger": "pass_or_land",
     "landing_effect": "checkup",
     "landing_checkup": {
       "cost": 5000,
+      "paid_to": "medical_system",
       "grants_buff": "next_medical_claim_bonus",
       "buff_value": 0.10,
-      "_note": "走到醫院格 = 健康檢查，小額支出換取下次醫療理賠 +10%。鼓勵玩家不要把醫院格當成純負面。"
+      "_note": "經過或走到醫院格 = 健康檢查，支付 $5,000 給醫療體系，換取下次醫療理賠 +10%。場上沒有醫療職業時支付給系統。"
     },
 
     "while_hospitalized": {
@@ -80,6 +82,7 @@
     "early_discharge": {
       "allowed": true,
       "cost_formula": "50000 * remaining_turns",
+      "paid_to": "medical_system",
       "_note": "自費提前出院。有錢就能買回時間 — 這很真實，也讓現金流充裕的玩家有額外選項。"
     },
 

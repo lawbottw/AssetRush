@@ -6,7 +6,7 @@
 
   "_design": "取代前一版單一的「總資產 × 50%」額度。改為多種貸款各有核貸依據 — 有薪水的人靠信用貸款、有地產的人靠抵押。這讓「我現在缺錢該怎麼辦」在不同資產結構下有不同答案，也讓玩家實際體驗到「銀行看的是你有什麼，不是你需要多少」。",
 
-  "_v1_scope": "v1 啟用四種產品：credit / mortgage / student_loan / private_lender。stock_pledge（有股票的人靠質押）延到 v1.1 — 見該產品的 _v1_1 說明與 docs/01 §12.2。",
+  "_v1_scope": "v1 啟用四種產品：credit / mortgage / student_loan / finance_private_loan。stock_pledge（有股票的人靠質押）延到 v1.1 — 見該產品的 _v1_1 說明與 docs/01 §12.2。",
 
   "products": [
     {
@@ -14,8 +14,10 @@
       "name": "信用貸款",
       "underwriting_basis": "salary",
       "limit_formula": "monthly_salary * salary_multiple[occupation_tier]",
+      "variable_income_limit_formula": "(avg_lap_income_last_4_laps / 3) * salary_multiple[occupation_tier]",
+      "variable_income_occupations": ["creator", "real_estate_agent"],
       "salary_multiple": { "1": 16, "2": 20, "3": 22 },
-      "_multiple_note": "上限 22 倍錨定台灣金管會對銀行無擔保債務的「月薪 22 倍」規範。職業層級越高核貸倍數越高 — 這是真實的，也給了進修轉職一個薪水以外的回報。",
+      "_multiple_note": "上限 22 倍錨定台灣金管會對銀行無擔保債務的「月薪 22 倍」規範。網紅與房仲沒有固定薪資，改用最近 4 圈變動收入均值折算月收入；沒有收入紀錄時額度為 0。",
       "rate_per_lap": 0.020,
       "requires_no_default": true,
       "unavailable_while": ["studying", "jailed", "unemployed"]
@@ -49,20 +51,35 @@
       "_note": "僅開局負債家庭持有，不可主動申請。"
     },
     {
-      "key": "private_lender",
-      "name": "民間信貸",
-      "underwriting_basis": "none",
-      "limit_formula": "shortfall_amount",
-      "rate_per_lap": 0.080,
-      "always_approved": true,
-      "_note": "無審核、隨借隨有，但利率是信用貸款的 4 倍。存在的意義是給玩家一個「明知不該但現在必須」的選擇 — 它通常是破產前的最後一步，而不是解方。UI 上必須明確標示風險，不做誘導。"
+      "key": "finance_private_loan",
+      "name": "金融業私人放貸",
+      "underwriting_basis": "finance_player_consent",
+      "limit_formula": "min(shortfall_amount, lender_available_cash_after_reserve)",
+      "rate_per_lap": 0.030,
+      "lender": "finance_occupation_player",
+      "requires_lender_consent": true,
+      "requires_lender_cash_reserve": 100000,
+      "repay_laps": 4,
+      "negotiable_terms": ["amount", "repay_laps", "collateral"],
+      "collateral_recovery": {
+        "enabled": true,
+        "trigger": "borrower_default_or_bankruptcy",
+        "requires_legal_process": true,
+        "lawyer_fee": 80000,
+        "lawyer_fee_paid_by": "lender",
+        "recoverable_collateral": ["property", "vehicle", "stock"],
+        "recovery_scope": "pledged_collateral_only",
+        "priority_over_bank_lenders": true,
+        "_note": "金融業私人放貸若有擔保品，借款人違約或破產時，放貸方可支付律師處理費啟動法律程序取回擔保品；只能取回契約約定的擔保品。"
+      },
+      "_note": "銀行貸款之外，只有金融業職業玩家可以私下放貸。一般玩家之間不能互相借貸；若場上沒有金融業或金融業不願放貸，玩家不能取得這類資金。金融業可要求擔保品，違約時可透過法律程序取回。"
     }
   ],
 
   "origination_points": {
     "_doc": "使用者要求：買房的格子時也可以決定是否要貸房貸",
     "quarterly_affairs": {
-      "products": ["credit", "mortgage", "private_lender"],
+      "products": ["credit", "mortgage", "finance_private_loan"],
       "_note": "通過起點時可申請或償還任何產品。",
       "_v1_1_note": "stock_pledge 已於 v1 停用（見上方 products[stock_pledge].enabled），因此不列於此。v1.1 啟用時要一併加回。"
     },
@@ -73,8 +90,8 @@
       "_premium_note": "認購溢價不可貸款 — 銀行只認基價。想加價搶地就得掏現金。"
     },
     "on_forced_liquidation": {
-      "products": ["private_lender"],
-      "_note": "清算流程中系統會詢問是否借民間信貸避免破產。必須明確標示年化 36% 與還清所需圈數，不做誘導。"
+      "products": ["finance_private_loan"],
+      "_note": "清算後仍不足時，只能向金融業職業玩家請求私人放貸。若沒有金融業玩家願意放貸或金額不足，玩家直接破產。"
     }
   },
 
@@ -94,18 +111,57 @@
       { "type": "rate_increase", "value": 0.010 },
       { "type": "block_new_credit_loan", "laps": 2 }
     ],
+    "legal_collection": {
+      "trigger_records": 2,
+      "legal_issue": "debt_collection",
+      "base_amount_formula": "overdue_amount",
+      "severity": "major",
+      "contestable_by": "lawyer",
+      "_note": "累積 2 次違約後，可能進入追債/支付命令類法律流程，可委任律師。"
+    },
     "records_to_blacklist": 3,
-    "blacklist_effect": "僅剩民間信貸可用",
+    "blacklist_effect": "銀行信用貸款不可用；若需非銀行資金，只能向金融業玩家申請私人放貸",
     "_note": "違約不會立即破產，但會讓後續融資成本螺旋上升。這是真實的債務陷阱，也是遊戲想傳達的東西之一。"
   },
 
   "total_debt_cap": {
     "formula": "net_worth * 1.5",
-    "_note": "所有貸款餘額合計上限。超過則無法再借（民間信貸除外）。"
+    "_note": "所有銀行貸款餘額合計上限。金融業私人放貸由放貸玩家自行審查，可接受超過上限的高風險借款。"
   },
 
-  "occupation_perks": {
-    "finance": { "credit_rate_discount": 0.005, "_note": "金融業從業人員的信貸利率 -0.5%/圈。" },
-    "civil_servant": { "salary_multiple_bonus": 4, "_note": "公教人員信貸倍數 +4（真實世界銀行確實偏好公教）。" }
+  "bankruptcy_settlement": {
+    "pre_bankruptcy_finance_private_loan": {
+      "enabled": true,
+      "max_amount_formula": "shortfall_amount",
+      "requires_finance_occupation_lender": true,
+      "requires_lender_consent": true,
+      "deadline": {
+        "blitz_seconds": 60,
+        "daily_until": "same_day_23:59"
+      },
+      "_note": "清算與隊友代償後仍不足時，只能向金融業職業玩家請求私人放貸。即時配對型限 60 秒；日常型可等到當日結算前。若無金融業玩家願意承接或金額不足，玩家直接破產。"
+    },
+    "liquidation_payout_priority": [
+      "government_taxes_and_fines",
+      "secured_finance_private_lenders",
+      "finance_private_lenders",
+      "bank_and_system_lenders"
+    ],
+    "unpaid_balance_after_liquidation": "written_off_when_player_exits",
+    "_note": "若仍破產，系統自動清算資產並按順序償還政府/有擔保金融業私人債權/無擔保金融業私人債權/銀行與系統債權。金融業私人放貸優先於銀行；不足額的部分在玩家退場時沖銷。"
+  },
+
+  "occupation_credit_modifiers": {
+    "_note": "職業貸款修正集中在這裡，不寫進職業主技能。salary_multiple_bonus 控制信貸倍數加成，rate_discount 控制每圈利率減免。金融業沒有手續費或信貸利率減免；工程師靠 T3 薪資與倍數自然取得較高授信。",
+    "civil_servant": {
+      "salary_multiple_bonus": 4,
+      "rate_discount": 0.005,
+      "_note": "公務員信貸利率 -0.5%/圈，且信貸倍數 +4。"
+    },
+    "medical": {
+      "salary_multiple_bonus": 0,
+      "rate_discount": 0.005,
+      "_note": "醫療職業信貸利率 -0.5%/圈。"
+    }
   }
 }

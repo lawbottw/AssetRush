@@ -20,9 +20,9 @@
   ],
 
   "function_tiles": {
-    "_note": "只剩 6 種。證交所／監理站／進修中心已全部移除 — 股票、貸款、進修轉職、買車、保險都改到『通過起點的季度事務』辦理。棋盤上只剩「移動與地產」的純粹大富翁體驗。",
-    "_harmless_note": "監獄與醫院是實體格位，但走到它們本身無害（探監／健檢）。只有命運卡會把你送進去。",
-    "kinds": ["start", "opportunity", "fate", "tax", "jail", "hospital"],
+    "_note": "v1 功能格為 7 種。證交所／監理站／進修中心已全部移除 — 股票、貸款、進修轉職、買車、保險都改到『通過起點的季度事務』辦理。健康事件不做成格子，而是在每次通過起點時檢定。",
+    "_harmless_note": "監獄與醫院是實體格位。監獄格走到是探監；醫院格經過或走到會支付健檢費給醫療體系，但不會直接住院。只有命運卡、健康檢定或事故會使玩家入獄/住院。",
+    "kinds": ["start", "opportunity", "fate", "leisure", "tax", "jail", "hospital"],
 
     "layouts": {
       "16": [
@@ -35,24 +35,27 @@
       ],
       "22": [
         { "kind": "start", "count": 1, "fixed_index": 0 },
-        { "kind": "opportunity", "count": 2 },
-        { "kind": "fate", "count": 2 },
+        { "kind": "opportunity", "count": 1 },
+        { "kind": "fate", "count": 1 },
+        { "kind": "leisure", "count": 2 },
         { "kind": "tax", "count": 1 },
         { "kind": "jail", "count": 1 },
         { "kind": "hospital", "count": 1 }
       ],
       "25": [
         { "kind": "start", "count": 1, "fixed_index": 0 },
-        { "kind": "opportunity", "count": 2 },
-        { "kind": "fate", "count": 2 },
+        { "kind": "opportunity", "count": 1 },
+        { "kind": "fate", "count": 1 },
+        { "kind": "leisure", "count": 2 },
         { "kind": "tax", "count": 1 },
         { "kind": "jail", "count": 1 },
         { "kind": "hospital", "count": 1 }
       ],
       "28": [
         { "kind": "start", "count": 1, "fixed_index": 0 },
-        { "kind": "opportunity", "count": 2 },
-        { "kind": "fate", "count": 2 },
+        { "kind": "opportunity", "count": 1 },
+        { "kind": "fate", "count": 1 },
+        { "kind": "leisure", "count": 2 },
         { "kind": "tax", "count": 1 },
         { "kind": "jail", "count": 1 },
         { "kind": "hospital", "count": 1 }
@@ -60,15 +63,17 @@
       "32": [
         { "kind": "start", "count": 1, "fixed_index": 0 },
         { "kind": "opportunity", "count": 3 },
-        { "kind": "fate", "count": 3 },
+        { "kind": "fate", "count": 2 },
+        { "kind": "leisure", "count": 1 },
         { "kind": "tax", "count": 1 },
         { "kind": "jail", "count": 1 },
         { "kind": "hospital", "count": 1 }
       ],
       "36": [
         { "kind": "start", "count": 1, "fixed_index": 0 },
-        { "kind": "opportunity", "count": 3 },
-        { "kind": "fate", "count": 3 },
+        { "kind": "opportunity", "count": 2 },
+        { "kind": "fate", "count": 2 },
+        { "kind": "leisure", "count": 2 },
         { "kind": "tax", "count": 1 },
         { "kind": "jail", "count": 1 },
         { "kind": "hospital", "count": 1 }
@@ -76,13 +81,14 @@
       "48": [
         { "kind": "start", "count": 1, "fixed_index": 0 },
         { "kind": "opportunity", "count": 4 },
-        { "kind": "fate", "count": 4 },
+        { "kind": "fate", "count": 3 },
+        { "kind": "leisure", "count": 1 },
         { "kind": "tax", "count": 2 },
         { "kind": "jail", "count": 1 },
         { "kind": "hospital", "count": 1 }
       ]
     },
-    "fallback_rule": "未列出的格數以最接近的 layout 為準，並依比例調整機會/命運數量（維持約 6% 各）"
+    "fallback_rule": "未列出的格數以最接近的 layout 為準，並依比例調整機會/命運/休閒數量；小棋盤優先保留機會與命運，休閒可為 0。"
   },
 
   "sampling": {

@@ -63,7 +63,7 @@
       "max_players": 30,
       "day_limit": 21,
       "lap_limit": 21,
-      "_length_note": "1 天 = 1 圈 = 1 季。21 天 = 21 圈 ≈ 5.25 遊戲年。年度結算（保險/股息/年終/折舊）每 4 圈 = 每 4 天。",
+      "_length_note": "日常型 1 天 = 固定擲骰額度（28/36/48 格分別 8/10/14 次）。通過起點才算 1 圈 = 1 季；21 天預期約 21 圈，但實際依骰點與車輛落點選擇浮動。若有孩子棋子，孩子有獨立位置與同等每日擲骰額度。年度結算仍為每 4 圈。",
       "uses_realtime": false,
       "purchase_mode": "claim_auction",
       "trade_offer_ttl_hours": 48,
@@ -71,7 +71,7 @@
 
       "turn_structure": {
         "mode": "one_lap_per_day",
-        "_note": "每日行動 = 從你目前位置擲骰前進，直到通過起點為止。位置持續（不重置），擲骰次數自然浮動，session 永遠結束在起點。",
+        "_note": "每日行動 = 從目前位置擲骰固定次數。位置持續（不重置）；通過起點時立即觸發健康檢定與季度事務，但今日行動不因此結束。",
         "_decision_note": "8-14 次擲骰中只有約 3-5 次是真決策（要不要出價買地），其餘自動結算 → 每日 3-5 分鐘。",
         "async": true,
         "_async_note": "玩家可在當日任意時間行動，互不阻塞。移動/租金/卡片/領薪立即結算（這些動作皆可交換，誰先誰後結果相同）；唯一不可並行的是搶同一塊無主地，交由認購仲裁處理。",
@@ -79,7 +79,7 @@
         "turn_order_rotates_daily": true,
         "_order_note": "回合順位開局擲 1D100 排定，每日輪替一位。只在同價競標時作為仲裁權 — 順序感從『排隊』轉為『競標』。",
         "on_missed_day": "standing_orders",
-        "_missed_note": "當日未行動者於 00:00 結算時由 Standing Orders 自動走完一圈。"
+        "_missed_note": "當日未行動者於 00:00 結算時由 Standing Orders 自動用完今日擲骰額度。"
       },
 
       "board_size_by_players": [
@@ -87,17 +87,17 @@
         { "min": 7,  "max": 14, "total_tiles": 36, "function_tiles": 10, "property_tiles": 26, "avg_rolls_per_day": 10, "est_session_minutes": 4 },
         { "min": 15, "max": 30, "total_tiles": 48, "function_tiles": 13, "property_tiles": 35, "avg_rolls_per_day": 14, "est_session_minutes": 5 }
       ],
-      "_board_note": "棋盤放大是「一日一圈」的必然結果 — 每日走完一圈，圈太短會讓薪資注入過量。副作用是地產格大增：30 人桌人均從 0.9 格提升到 1.2 格，解決了原本『人人買不到地』的問題。"
+      "_board_note": "棋盤放大是固定擲骰日常型的必然結果 — 每日 8/10/14 次擲骰長期約通過一圈，圈太短會讓薪資注入過量。副作用是地產格大增：30 人桌人均從 0.9 格提升到 1.2 格，解決了原本『人人買不到地』的問題。"
     }
   },
 
   "net_worth_threshold": {
-    "_doc": "取代舊的 M 值制。圈數在新架構下是動態的（blitz 2-12 圈、daily 21 圈），單一 M 值無法同時服務兩者 — 經濟規模差 5 倍以上。",
+    "_doc": "取代舊的 M 值制。圈數在新架構下是動態的（blitz 2-12 圈、daily 預期約 21 圈），單一 M 值無法同時服務兩者 — 經濟規模差 5 倍以上。",
     "formula": "max( (avg_starting_net_worth + lap_limit * avg_quarterly_salary) * income_multiplier , max_starting_net_worth * max_starting_multiplier )",
     "income_multiplier": 2.5,
     "max_starting_multiplier": 1.6,
     "_first_term_note": "第一項 = 「開局身家 + 整局預估薪資注入」× 2.5。自動隨局長縮放，不需人工調參。",
-    "_second_term_note": "第二項是必要的下界。一位「富裕家庭 + 半導體工程師」起始總資產約 $2,350,000，沒有這條，短局會在第 1 回合就結束。",
+    "_second_term_note": "第二項是必要的下界。一位「富裕家庭 + 工程師」起始總資產可能接近短局第一項門檻，沒有這條，短局可能在第 1 回合就結束。",
     "computed_at": "game_start",
     "check_immediately_after_start": true,
     "host_adjustable_range": 0.5,
@@ -130,12 +130,21 @@
     "liquidation_order": ["sell_stocks", "mortgage_properties", "sell_vehicle", "sell_properties_to_bank"],
     "then_try_alliance_bailout": true,
     "_bailout_note": "四步清算後仍為負，且該玩家有家庭/伴侶 → 進入隊友代償（alliances.json）。代償成功則不破產。",
+    "pre_bankruptcy_rescue": ["finance_private_loan"],
+    "_pre_bankruptcy_note": "清算與隊友代償後仍為負時，只能向金融業職業玩家請求私人放貸；沒有金融業願意承接或金額不足，玩家直接破產。",
+    "liquidation_payout_priority": [
+      "government_taxes_and_fines",
+      "secured_finance_private_lenders",
+      "finance_private_lenders",
+      "bank_and_system_lenders"
+    ],
+    "unpaid_balance_after_liquidation": "written_off_when_player_exits",
     "assets_return_to_unowned": true,
-    "_assets_note": "破產者資產歸還無主而非歸債權人。這是對零和信條的刻意例外 — 避免「打死一個人就吃掉他全部家產」的滾雪球讓局勢中期就鎖死。"
+    "_assets_note": "清算所得先償還政府罰稅、有擔保金融業私人債權、無擔保金融業私人債權、銀行與系統債權；若仍不足，玩家退場時沖銷。金融業私人放貸優先於銀行。剩餘資產歸還無主而非直接歸債權人，避免「打死一個人就吃掉他全部家產」的滾雪球讓局勢中期就鎖死。"
   },
 
   "loan": {
-    "_moved": "借貸產品已獨立為 config/loans.json（信用／房貸／股票質押／學貸／民間信貸）。此處僅保留全域上限。",
+    "_moved": "借貸產品已獨立為 config/loans.json（信用／房貸／股票質押／學貸／金融業私人放貸）。此處僅保留全域上限。",
     "total_debt_cap_ratio_of_net_worth": 1.5,
     "compound": true
   },

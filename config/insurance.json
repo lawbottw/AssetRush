@@ -42,5 +42,20 @@
     }
   ],
 
+  "exclusions": [
+    {
+      "category": "fraud",
+      "name": "詐騙與高風險投資損失",
+      "covered": false,
+      "_note": "創業合夥邀約、海外基金邀約等自願投入本金的事件，若結果為詐騙，投入本金全數損失且不理賠，避免保險變成賭博護身符。"
+    },
+    {
+      "category": "intentional_illegal_act",
+      "name": "故意違法行為",
+      "covered": false,
+      "_note": "酒駕的罰鍰與監禁不由責任險理賠；若另有事故醫療費，可由醫療險按醫療規則處理。"
+    }
+  ],
+
   "_sponsorship_slot": "保險是品牌置入最自然的入口（見 docs/00-product-overview.md §7.2）。政策名稱與視覺可由後台掛品牌，但費率與理賠比例不得因贊助改變。"
 }

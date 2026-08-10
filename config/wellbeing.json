@@ -1,0 +1,57 @@
+{
+  "version": "2026.08.3",
+  "_doc": "docs/01-game-rules.md §19 健康、住宿、休閒與生育",
+  "_design": "健康與運氣是非金錢狀態。健康承接疾病、休閒、旅遊、住院；運氣只微幅影響機會/命運權重，不影響骰點、股票價格、認購仲裁或 server_seed。",
+
+  "health": {
+    "min": 0,
+    "max": 100,
+    "default": 70,
+    "starting_range": [55, 85],
+    "bands": [
+      { "key": "critical", "max": 20, "disease_risk_multiplier": 2.0 },
+      { "key": "poor", "max": 40, "disease_risk_multiplier": 1.5 },
+      { "key": "normal", "max": 75, "disease_risk_multiplier": 1.0 },
+      { "key": "good", "max": 100, "disease_risk_multiplier": 0.75 }
+    ],
+    "_note": "實際疾病觸發率、疾病權重、費用與住院率留給 M3 模擬校正。"
+  },
+
+  "luck": {
+    "min": -2,
+    "max": 2,
+    "default": 0,
+    "starting_weights": [
+      { "value": -2, "weight": 5 },
+      { "value": -1, "weight": 20 },
+      { "value": 0, "weight": 50 },
+      { "value": 1, "weight": 20 },
+      { "value": 2, "weight": 5 }
+    ],
+    "max_event_weight_shift": 0.05,
+    "_note": "運氣只做小幅事件權重偏移。不得影響骰點、股票價格、認購勝負、地產抽樣或結束排名。"
+  },
+
+  "leisure": {
+    "travel_is_leisure_subtype": true,
+    "travel_benefits": [
+      "health_gain",
+      "next_health_check_discount",
+      "temporary_luck_bonus",
+      "relationship_positive_bias",
+      "temporary_lodging_discount"
+    ],
+    "_note": "旅遊是高成本休閒，不直接給大筆現金，避免變成投資選項。"
+  },
+
+  "children": {
+    "max_child_tokens_per_guardian": 1,
+    "requires_unmortgaged_property": true,
+    "acquisition_methods": ["birth", "adoption"],
+    "child_has_independent_position": true,
+    "child_daily_roll_budget": "same_as_adult_daily_roll_budget",
+    "can_buy_property": false,
+    "can_use_quarterly_affairs": false,
+    "_note": "孩子棋子可由單身玩家或財富共享隊伍管理；需至少 1 格未抵押地產。日常型下孩子有與成人相同的每日擲骰額度、獨立位置與獨立一圈，相當於一個子玩家；成人 8 次時，有 1 個小孩就是成人 8 + 小孩 8。孩子不能買地、股票、貸款、結婚、開車或交易。"
+  }
+}
