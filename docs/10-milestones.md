@@ -314,6 +314,11 @@ Schema 是規則的**形式化**。規則沒想清楚，schema 就寫不出來�
 1. v1 的 13 條邊界情況全部有答案且寫回 `docs/01`；第 14 條因股票質押延到 v1.1，須標記不適用與日後補規格條件
 2. v1 範圍已切割，砍掉的系統標記清楚
 3. [§2.3](#23-驗收標準m1-完成的判準) 的五題全部只改 JSON 就能達成
+4. `make m1-check` 通過；`make seed-config` 可將驗證後的整包 config 寫入 `game_configs`
+
+> M1 的 `make simulate` 要求只保留為「config 變更能被 engine probe 觀測」的 smoke
+> check。完整對局 runner、蒙地卡羅與十三項平衡指標屬於 M2/M3；提前塞進 M1 會把
+> 「config-driven foundation」和「完整遊戲引擎」混在一起。
 
 ---
 

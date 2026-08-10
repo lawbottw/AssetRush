@@ -28,7 +28,7 @@
   "property_price_mapping": {
     "K": 0.4,
     "gamma": 1.0,
-    "formula": "base_price = round(avg_price_per_ping * K ^ gamma, -3)",
+    "formula": "round(avg_price_per_ping * K ** gamma, -3)",
     "_note": "gamma=1.0 為線性映射，不做 log 壓縮，直接反映真實房價差距（約 13 倍）。K 與 gamma 皆可調：gamma<1 壓縮差距、gamma>1 放大。",
     "expected_range": { "min": 12000, "max": 440000, "mean": 130000 }
   },

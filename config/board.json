@@ -98,8 +98,8 @@
     "constraints_scale_with_board": true,
     "_scale_note": "第一版的固定約束集（六區各 ≥2 格 = 需 12 格）在小棋盤上無解 — blitz 最小棋盤只有 10 格地產。改為隨地產格數縮放。",
     "constraints": {
-      "C1_min_tiles_per_region": "property_tiles >= 18 ? 2 : 1",
-      "C2_tier5_range":          "property_tiles >= 18 ? [2,3] : [1,1]",
+      "C1_min_tiles_per_region": "2 if property_tiles >= 18 else 1",
+      "C2_tier5_range":          "(2, 3) if property_tiles >= 18 else (1, 1)",
       "C3_min_tier1_plus_tier2": "max(3, round(property_tiles * 0.35))",
       "C4_max_tiles_per_county": "max(3, round(property_tiles * 0.22))",
       "C5_min_counties_with_2_to_3_tiles": "max(2, floor(property_tiles / 5))",
@@ -107,7 +107,7 @@
     },
     "_feasibility": "已驗算 10/11/12/14/17/19/20/23/26/35 格地產（涵蓋 blitz 與 daily 全部區間），縮放後約束集皆有解。硬需求下界 = max(6×C1, C2max+C3, 2×C5)，在所有尺寸下皆 ≤ 地產格數。",
 
-    "weight_formula": "log(population) * tier_weight[price_tier]",
+    "weight_formula": "log(population) * tier_weight_for_price_tier",
     "tier_weight": { "1": 1.0, "2": 1.3, "3": 1.5, "4": 1.2, "5": 0.6 },
     "_tier_weight_note": "T3 中價出現頻率最高、T5 最低，模擬真實台灣房市的分布感受，並避免棋盤被極端值主導。"
   },
