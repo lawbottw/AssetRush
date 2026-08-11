@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from typing import Literal, assert_never
 
 from assetrush.engine.errors import InvalidActionError
@@ -15,13 +15,8 @@ from assetrush.engine.events import (
     PlayerMovedEvent,
     TreasuryAdjustedEvent,
 )
-from assetrush.engine.state import (
-    GameState,
-    ModifierValue,
-    Money,
-    PendingEffect,
-    PlayerModifier,
-)
+from assetrush.engine.replay import apply_events
+from assetrush.engine.state import GameState, ModifierValue, Money
 
 ConfigSnapshot = Mapping[str, object]
 
@@ -84,60 +79,60 @@ def apply_action(
 ) -> tuple[GameState, list[Event]]:
     """套用 action 並回傳新 state 與事件。
 
-    `config` 在 #9 僅保留簽名；正式 schema 會在後續 M1 issue 補上。
+    M2 #19 起，action 先轉成事件，再由 event sourcing 路徑更新 state。
     """
     _ = config
 
+    events = action_to_events(state, action)
+    return apply_events(state, events), events
+
+
+def action_to_events(state: GameState, action: Action) -> list[Event]:
+    """把 M1 action 轉成可 replay 的事件。"""
+
     if isinstance(action, AdjustPlayerCashAction):
-        return _adjust_player_cash(state, action)
+        return [_adjust_player_cash(state, action)]
     if isinstance(action, AdjustTreasuryAction):
-        return _adjust_treasury(state, action)
+        return [_adjust_treasury(state, action)]
     if isinstance(action, MovePlayerAction):
-        return _move_player(state, action)
+        return [_move_player(state, action)]
     if isinstance(action, AddPlayerModifierAction):
-        return _add_player_modifier(state, action)
+        return [_add_player_modifier(state, action)]
     if isinstance(action, AddPendingEffectAction):
-        return _add_pending_effect(state, action)
+        return [_add_pending_effect(state, action)]
 
     assert_never(action)
 
 
-def _adjust_player_cash(
-    state: GameState, action: AdjustPlayerCashAction
-) -> tuple[GameState, list[Event]]:
+def _adjust_player_cash(state: GameState, action: AdjustPlayerCashAction) -> CashAdjustedEvent:
     if action.delta == 0:
         raise InvalidActionError("cash delta must not be zero")
 
     player = state.player(action.player_id)
-    updated_player = replace(player, cash=player.cash + action.delta)
-    updated_state = state.replace_player(updated_player)
-    event = CashAdjustedEvent(
+    return CashAdjustedEvent(
         type="cash_adjusted",
         player_id=action.player_id,
         delta=action.delta,
-        balance_after=updated_player.cash,
+        balance_after=player.cash + action.delta,
         reason=action.reason,
+        seq=_next_seq(state),
     )
-    return updated_state, [event]
 
 
-def _adjust_treasury(
-    state: GameState, action: AdjustTreasuryAction
-) -> tuple[GameState, list[Event]]:
+def _adjust_treasury(state: GameState, action: AdjustTreasuryAction) -> TreasuryAdjustedEvent:
     if action.delta == 0:
         raise InvalidActionError("treasury delta must not be zero")
 
-    updated_state = replace(state, treasury=state.treasury + action.delta)
-    event = TreasuryAdjustedEvent(
+    return TreasuryAdjustedEvent(
         type="treasury_adjusted",
         delta=action.delta,
-        balance_after=updated_state.treasury,
+        balance_after=state.treasury + action.delta,
         reason=action.reason,
+        seq=_next_seq(state),
     )
-    return updated_state, [event]
 
 
-def _move_player(state: GameState, action: MovePlayerAction) -> tuple[GameState, list[Event]]:
+def _move_player(state: GameState, action: MovePlayerAction) -> PlayerMovedEvent:
     if action.position is None and action.steps == 0 and action.lap_delta == 0:
         raise InvalidActionError("move action must change position or lap")
     if action.total_tiles is not None and action.total_tiles <= 0:
@@ -159,9 +154,7 @@ def _move_player(state: GameState, action: MovePlayerAction) -> tuple[GameState,
         lap_from_steps = raw_position // action.total_tiles
 
     lap_after = player.lap + action.lap_delta + lap_from_steps
-    updated_player = replace(player, position=position_after, lap=lap_after)
-    updated_state = state.replace_player(updated_player)
-    event = PlayerMovedEvent(
+    return PlayerMovedEvent(
         type="player_moved",
         player_id=action.player_id,
         position_before=position_before,
@@ -169,50 +162,45 @@ def _move_player(state: GameState, action: MovePlayerAction) -> tuple[GameState,
         lap_before=lap_before,
         lap_after=lap_after,
         reason=action.reason,
+        seq=_next_seq(state),
     )
-    return updated_state, [event]
 
 
 def _add_player_modifier(
     state: GameState, action: AddPlayerModifierAction
-) -> tuple[GameState, list[Event]]:
+) -> PlayerModifierAddedEvent:
     if not action.key:
         raise InvalidActionError("modifier key must not be empty")
     if action.laps is not None and action.laps <= 0:
         raise InvalidActionError("modifier laps must be positive")
 
-    player = state.player(action.player_id)
-    modifier = PlayerModifier(key=action.key, value=action.value, laps=action.laps)
-    updated_player = replace(player, modifiers=(*player.modifiers, modifier))
-    updated_state = state.replace_player(updated_player)
-    event = PlayerModifierAddedEvent(
+    state.player(action.player_id)
+    return PlayerModifierAddedEvent(
         type="player_modifier_added",
         player_id=action.player_id,
         key=action.key,
         value=action.value,
         laps=action.laps,
         reason=action.reason,
+        seq=_next_seq(state),
     )
-    return updated_state, [event]
 
 
 def _add_pending_effect(
     state: GameState, action: AddPendingEffectAction
-) -> tuple[GameState, list[Event]]:
+) -> PendingEffectAddedEvent:
     if not action.effect_type:
         raise InvalidActionError("pending effect type must not be empty")
 
     state.player(action.player_id)
-    pending_effect = PendingEffect(
-        effect_type=action.effect_type,
-        player_id=action.player_id,
-        reason=action.reason,
-    )
-    updated_state = replace(state, pending_effects=(*state.pending_effects, pending_effect))
-    event = PendingEffectAddedEvent(
+    return PendingEffectAddedEvent(
         type="pending_effect_added",
         player_id=action.player_id,
         effect_type=action.effect_type,
         reason=action.reason,
+        seq=_next_seq(state),
     )
-    return updated_state, [event]
+
+
+def _next_seq(state: GameState) -> int:
+    return state.event_seq + 1

@@ -19,6 +19,22 @@ class InvalidActionError(EngineError):
     """Action 本身不符合規則引擎的基本前置條件。"""
 
 
+class InvalidCommandError(EngineError):
+    """Command 不符合目前局狀態或 phase。"""
+
+
+class InvalidEventError(EngineError):
+    """事件流無法套用或 replay。"""
+
+
+class BoardSamplingError(EngineError):
+    """棋盤抽樣約束無解或輸入資料不足。"""
+
+
+class GameSetupError(EngineError):
+    """開局初始化輸入或 config 不符合 M2 規格。"""
+
+
 class FormulaError(EngineError):
     """公式無法安全解析或求值。"""
 
