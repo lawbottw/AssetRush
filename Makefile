@@ -13,7 +13,7 @@ BACKEND_PORT  ?= 8000
 .PHONY: help install dev dev-frontend dev-backend build build-frontend build-backend \
         test test-frontend test-backend lint lint-frontend lint-backend \
         check-engine check-db validate-config seed-config sync-balance-doc \
-        check-balance-doc m1-check format clean ci
+        check-balance-doc play-cli m1-check format clean ci
 
 help:               ## 列出所有 target
 	@echo "AssetRush make targets:"
@@ -102,3 +102,6 @@ format:             ## 自動修正可修的格式問題
 clean:              ## 清掉建置產物與快取
 	rm -rf $(FRONTEND)/.next $(FRONTEND)/out
 	rm -rf $(BACKEND)/dist $(BACKEND)/.pytest_cache $(BACKEND)/.mypy_cache $(BACKEND)/.ruff_cache
+
+play-cli:           ## M2 text runner: MODE=daily PLAYERS=4 SEED=demo STRATEGY=conservative
+	cd $(BACKEND) && uv run python scripts/play_cli.py run --config-dir ../../config --mode $(or $(MODE),blitz) --players $(or $(PLAYERS),4) --seed $(or $(SEED),cli-seed) --strategy $(or $(STRATEGY),conservative) --max-turns $(or $(MAX_TURNS),1000)
