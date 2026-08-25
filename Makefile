@@ -12,7 +12,8 @@ BACKEND_PORT  ?= 8000
 .DEFAULT_GOAL := help
 .PHONY: help install dev dev-frontend dev-backend build build-frontend build-backend \
         test test-frontend test-backend lint lint-frontend lint-backend \
-        check-engine check-db migrate validate-config seed-config sync-balance-doc \
+        check-engine check-db migrate bootstrap-test-db verify-game m4-check \
+        validate-config seed-config sync-balance-doc \
         check-balance-doc play-cli play-cli-offline simulate m1-check format clean ci
 
 help:               ## 列出所有 target
@@ -77,6 +78,15 @@ check-db:           ## 驗證 Supabase 連線（需要網路，刻意不掛在 l
 
 migrate:            ## ★ M4：依序套用 supabase/migrations（需要 DB）
 	cd $(BACKEND) && uv run python scripts/migrate.py
+
+bootstrap-test-db:  ## M4: create Supabase primitives; refuses non-local databases
+	cd $(BACKEND) && uv run python scripts/bootstrap_test_db.py
+
+verify-game:        ## M4: replay GAME_ID and compare DB snapshots/read models
+	cd $(BACKEND) && uv run python scripts/verify_game.py --game-id $(GAME_ID)
+
+m4-check: bootstrap-test-db migrate  ## M4: isolated DB suite, including 1,000 races
+	cd $(BACKEND) && uv run pytest -q tests/test_migrations_integration.py tests/test_rls_integration.py tests/test_game_store_integration.py tests/test_games_api_integration.py tests/test_game_verifier_integration.py
 
 lint: check-engine validate-config check-balance-doc lint-backend lint-frontend  ## engine 邊界 + config + docs 同步 + 機密外洩 + ruff + mypy + eslint + tsc
 

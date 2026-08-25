@@ -26,3 +26,17 @@ make play-cli MODE=blitz PLAYERS=2 GAME_ID=demo \
 The default runner is an HTTP client. Use `make play-cli-offline` only for a pure-engine simulation.
 To test restart recovery, invoke `scripts/play_cli.py run` with `--pause-after-turns 3`, restart the
 API, then invoke it again with the same `--game-id` and player IDs.
+
+## Persistence acceptance gate
+
+Use a disposable local PostgreSQL database (the bootstrap command rejects remote hosts), then run:
+
+```bash
+make m4-check
+make verify-game GAME_ID=<persisted-game-uuid>
+```
+
+`m4-check` applies migrations and exercises RLS, API persistence, replay verification, rollback,
+different-game parallelism, settlement races, and 1,000 pairs of same-version writes. `verify-game`
+replays the immutable baseline plus ordered event stream and compares the canonical snapshot and
+the primary normalized projections. It exits non-zero with field paths when data differs.

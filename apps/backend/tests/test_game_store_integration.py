@@ -14,11 +14,12 @@ from assetrush.config_bundle import load_config_bundle
 from assetrush.engine import (
     AdjustPlayerCashAction,
     ApplyActionCommand,
+    RunDailySettlementCommand,
     TakeTurnCommand,
     state_digest,
 )
 from assetrush.engine.setup import GameStartSpec, start_game
-from assetrush.services import GameStore, StaleTurnError
+from assetrush.services import GameStore, PersistedTransition, StaleTurnError, verify_game
 from assetrush.sim.runner import synthetic_towns
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -181,6 +182,127 @@ async def test_failure_after_event_append_rolls_back_everything() -> None:
                 )
                 == 0
             )
+
+        retried = await regular_store.execute(game_id, expected_turn_seq=0, command=command)
+        assert retried.version == 1
+        assert retried.events
+        assert (await regular_store.get_game(game_id)).version == 1
+    finally:
+        await _cleanup_game_fixture(sessions, (game_id,), player_ids)
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_one_thousand_same_version_write_pairs_commit_exactly_once() -> None:
+    assert TEST_DATABASE_URL is not None
+    engine = create_async_engine(TEST_DATABASE_URL, pool_size=4)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    store = GameStore(sessions)
+    game_id, player_ids = await _create_game_fixture(sessions, store, "store-race-1000")
+    before = await store.get_game(game_id)
+    initial_cash = before.state.player(str(player_ids[0])).cash
+    command = ApplyActionCommand(
+        type="apply_action",
+        action=AdjustPlayerCashAction(
+            type="adjust_player_cash",
+            player_id=str(player_ids[0]),
+            delta=1,
+        ),
+    )
+    try:
+        for expected_version in range(1000):
+            results = await asyncio.gather(
+                store.execute(
+                    game_id,
+                    expected_turn_seq=expected_version,
+                    command=command,
+                ),
+                store.execute(
+                    game_id,
+                    expected_turn_seq=expected_version,
+                    command=command,
+                ),
+                return_exceptions=True,
+            )
+            assert sum(not isinstance(result, Exception) for result in results) == 1
+            assert sum(isinstance(result, StaleTurnError) for result in results) == 1
+
+        after = await store.get_game(game_id)
+        assert after.version == 1000
+        assert after.state.player(str(player_ids[0])).cash == initial_cash + 1000
+        async with sessions() as session:
+            event_sequences = (
+                await session.scalars(
+                    text(
+                        """
+                        select event_seq from public.game_events
+                         where game_id = :game_id order by event_seq
+                        """
+                    ),
+                    {"game_id": game_id},
+                )
+            ).all()
+        assert event_sequences == list(range(1, 1001))
+        report = await verify_game(sessions, game_id)
+        assert report.event_count == 1000
+    finally:
+        await _cleanup_game_fixture(sessions, (game_id,), player_ids)
+        await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_daily_settlement_race_uses_the_same_transaction_boundary() -> None:
+    assert TEST_DATABASE_URL is not None
+    engine = create_async_engine(TEST_DATABASE_URL, pool_size=4)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    store = GameStore(sessions)
+    game_id, player_ids = await _create_game_fixture(sessions, store, "settlement-race")
+    version = 0
+    try:
+        state = (await store.get_game(game_id)).state
+        assert state.rolls_per_day is not None
+        for player_id in player_ids:
+            for _ in range(state.rolls_per_day):
+                transition = await store.execute(
+                    game_id,
+                    expected_turn_seq=version,
+                    command=TakeTurnCommand(type="take_turn", player_id=str(player_id)),
+                )
+                version = transition.version
+
+        before_settlement = await store.get_game(game_id)
+        command = RunDailySettlementCommand(
+            type="run_daily_settlement", execute_standing_orders=True
+        )
+        results = await asyncio.gather(
+            store.execute(game_id, expected_turn_seq=version, command=command),
+            store.execute(game_id, expected_turn_seq=version, command=command),
+            return_exceptions=True,
+        )
+        assert sum(not isinstance(result, Exception) for result in results) == 1
+        assert sum(isinstance(result, StaleTurnError) for result in results) == 1
+        committed = next(result for result in results if not isinstance(result, Exception))
+        assert isinstance(committed, PersistedTransition)
+        after = await store.get_game(game_id)
+        assert after.version == version + 1
+        assert after.state.day == before_settlement.state.day + 1
+        assert state_digest(after.state) == state_digest(committed.state)
+        async with sessions() as session:
+            event_rows = (
+                await session.execute(
+                    text(
+                        """
+                        select event_seq, event_type
+                          from public.game_events
+                         where game_id = :game_id
+                         order by event_seq
+                        """
+                    ),
+                    {"game_id": game_id},
+                )
+            ).all()
+        assert [int(row.event_seq) for row in event_rows] == list(range(1, len(event_rows) + 1))
+        assert sum(row.event_type == "daily_settlement_completed" for row in event_rows) == 1
     finally:
         await _cleanup_game_fixture(sessions, (game_id,), player_ids)
         await engine.dispose()

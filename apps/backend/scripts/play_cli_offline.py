@@ -121,7 +121,7 @@ def _game_mode(value: str) -> GameMode:
 
 def _strategy_name(value: str) -> StrategyName:
     if value in strategy_choices():
-        return cast(StrategyName, value)
+        return value
     raise ValueError(f"unsupported strategy: {value}")
 
 
