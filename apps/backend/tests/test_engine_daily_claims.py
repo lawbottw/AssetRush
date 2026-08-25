@@ -183,6 +183,26 @@ def test_standing_orders_execute_missing_daily_rolls_and_complete_day() -> None:
     assert transition.state.player("p2").rolls_used_today == 0
 
 
+def test_standing_orders_skip_bankrupt_players() -> None:
+    state = _daily_state(
+        player_cash=0,
+        other_cash=500_000,
+        rolls_per_day=2,
+        p1_bankrupt=True,
+    )
+
+    transition = execute_command(
+        state,
+        RunDailySettlementCommand(type="run_daily_settlement"),
+        _turn_config(),
+    )
+
+    assert transition.state.day == 1
+    assert transition.state.turn_seq == 2
+    assert transition.state.player("p1").rolls_used_today == 0
+    assert transition.state.player("p2").rolls_used_today == 0
+
+
 def test_invalidating_trade_offers_unfreezes_cash_for_liquidation_path() -> None:
     state = _daily_state(
         player_cash=20_000,
@@ -240,6 +260,7 @@ def _daily_state(
     rolls_per_day: int = 0,
     standing_orders: tuple[StandingOrderState, ...] = (),
     trade_offers: tuple[TradeOfferState, ...] = (),
+    p1_bankrupt: bool = False,
 ) -> GameState:
     return GameState(
         id="daily-game",
@@ -251,7 +272,12 @@ def _daily_state(
         base_turn_order=base_turn_order,
         board=_board(),
         players=(
-            PlayerState(id="p1", cash=player_cash, frozen_cash=frozen_cash),
+            PlayerState(
+                id="p1",
+                cash=player_cash,
+                frozen_cash=frozen_cash,
+                is_bankrupt=p1_bankrupt,
+            ),
             PlayerState(id="p2", cash=other_cash),
         ),
         standing_orders=standing_orders,

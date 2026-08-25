@@ -1,5 +1,5 @@
 {
-  "version": "2026.08.3",
+  "version": "v1.0-validated",
   "_doc": "docs/02-game-balance.md §4 局的規模與結束門檻",
 
   "modes": {
@@ -96,6 +96,15 @@
     "formula": "max( (avg_starting_net_worth + lap_limit * avg_quarterly_salary) * income_multiplier , max_starting_net_worth * max_starting_multiplier )",
     "income_multiplier": 2.5,
     "max_starting_multiplier": 1.6,
+    "mode_multiplier": {
+      "blitz": 0.60,
+      "daily": 0.44
+    },
+    "crowded_game_multiplier": {
+      "min_players": 21,
+      "multiplier": 1.35,
+      "_note": "30 人日常型的土地競爭與資產累積更快；只提高局終資產門檻，讓中位對局至少能推進到第 12 天後。"
+    },
     "_first_term_note": "第一項 = 「開局身家 + 整局預估薪資注入」× 2.5。自動隨局長縮放，不需人工調參。",
     "_second_term_note": "第二項是必要的下界。一位「富裕家庭 + 工程師」起始總資產可能接近短局第一項門檻，沒有這條，短局可能在第 1 回合就結束。",
     "computed_at": "game_start",

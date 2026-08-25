@@ -105,6 +105,8 @@ class EventCard(ConfigModel):
     weight: int
     effect: EffectSpec
     category: str | None = None
+    jail: int | None = None
+    hospitalize: int | None = None
 
 
 class EventsConfig(RawConfig):
@@ -281,6 +283,11 @@ def _validate_events(config: GameConfig) -> None:
     for card in (*config.events.opportunity, *config.events.fate):
         if card.effect.type not in EFFECT_HANDLERS:
             raise ConfigValidationError(f"{card.id}: unknown effect type {card.effect.type!r}")
+        confinement_turns = [turns for turns in (card.jail, card.hospitalize) if turns is not None]
+        if len(confinement_turns) > 1:
+            raise ConfigValidationError(f"{card.id}: card cannot jail and hospitalize together")
+        if any(turns <= 0 for turns in confinement_turns):
+            raise ConfigValidationError(f"{card.id}: confinement turns must be positive")
 
 
 def _validate_weight_total(path: str, cards: list[EventCard]) -> None:

@@ -1,5 +1,5 @@
 {
-  "version": "2026.08.3",
+  "version": "v1.0-validated",
   "_doc": "docs/04-economy-and-realdata.md §2-3",
 
   "_pricing_decision": "直接使用真實股價，不做映射。前一版採「統一基準價 $1,000 + 套用真實漲跌幅」，已廢除。改用真實價的理由見 docs/04 §3。seed_price 為 2026-08-05（民國 1150805）TWSE STOCK_DAY_ALL 的真實收盤價快照，非虛構資料 — 開發期直接當種子用，P5 接上每日同步後即由實際收盤價覆寫。",

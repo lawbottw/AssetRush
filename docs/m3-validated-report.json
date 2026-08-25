@@ -1,0 +1,205 @@
+{
+  "balance_report": {
+    "completed_game_count": 306,
+    "game_count": 306,
+    "metrics": [
+      {
+        "key": "starting_advantage",
+        "notes": "",
+        "sample_size": 1230,
+        "status": "pass",
+        "threshold": "abs(corr(initial_net_worth, final_rank)) < 0.35",
+        "title": "21 圈是否放大起手優勢",
+        "value": 0.1502
+      },
+      {
+        "key": "alliance_win_rate_gap",
+        "notes": "",
+        "sample_size": 2130,
+        "status": "pass",
+        "threshold": "abs(allied_win_rate - single_win_rate) < 0.08",
+        "title": "組隊是否過強",
+        "value": 0.0303
+      },
+      {
+        "key": "vehicle_win_rate_gap",
+        "notes": "此指標驗證車輛不能成為必買或必避策略。",
+        "sample_size": 2130,
+        "status": "pass",
+        "threshold": "abs(vehicle_win_rate - no_vehicle_win_rate) < 0.10",
+        "title": "日常型車輛是否有意義",
+        "value": 0.0286
+      },
+      {
+        "key": "bid_premium_control",
+        "notes": "",
+        "sample_size": 2999,
+        "status": "pass",
+        "threshold": "high_cash_success_rate < 0.60 and average_winning_premium < 0.25",
+        "title": "競爭性認購溢價是否有效抑制碾壓",
+        "value": {
+          "average_winning_premium": 0.0626,
+          "high_cash_success_rate": 0.4055
+        }
+      },
+      {
+        "key": "education_vs_property",
+        "notes": "",
+        "sample_size": 1648,
+        "status": "pass",
+        "threshold": "abs(education_win_rate - property_win_rate) < 0.10",
+        "title": "進修 vs 購地是否平衡",
+        "value": 0.0513
+      },
+      {
+        "key": "threshold_end_ratio",
+        "notes": "",
+        "sample_size": 306,
+        "status": "pass",
+        "threshold": "blitz 15-30%; daily 20-40% of games end by net worth threshold",
+        "title": "資產門檻公式是否恰當",
+        "value": {
+          "blitz": 0.2867,
+          "daily": 0.3462
+        }
+      },
+      {
+        "key": "first_bankruptcy_timing",
+        "notes": "",
+        "sample_size": 88,
+        "status": "pass",
+        "threshold": "median(first_bankruptcy_day_or_lap) > 4",
+        "title": "破產會太早嗎",
+        "value": 6.0
+      },
+      {
+        "key": "turn_order_fairness",
+        "notes": "",
+        "sample_size": 1230,
+        "status": "pass",
+        "threshold": "abs(corr(initial_turn_order_index, normalized_final_rank)) < 0.10",
+        "title": "順位輪替是否公平",
+        "value": 0.0671
+      },
+      {
+        "key": "thirty_player_duration",
+        "notes": "起始現金 x1.3 是否必要需對照 config 調整前後報表。",
+        "sample_size": 6,
+        "status": "pass",
+        "threshold": "median(day) > 12",
+        "title": "30 人局撐得住嗎",
+        "value": 14.0
+      },
+      {
+        "key": "dominant_strategy",
+        "notes": "",
+        "sample_size": 2130,
+        "status": "pass",
+        "threshold": "max(strategy_win_rate) <= 0.60",
+        "title": "有沒有支配性策略",
+        "value": {
+          "aggressive": 0.1972,
+          "conservative": 0.1526,
+          "random": 0.1009,
+          "stock_education": 0.1385,
+          "vehicle": 0.1291
+        }
+      },
+      {
+        "key": "confinement_frequency",
+        "notes": "",
+        "sample_size": 4219,
+        "status": "pass",
+        "threshold": "jail 0.08-0.24; hospital 0.135-0.405 per player-year",
+        "title": "監獄／醫院頻率是否合理",
+        "value": {
+          "hospital_per_player_year": 0.1792,
+          "jail_per_player_year": 0.1477
+        }
+      },
+      {
+        "key": "finance_bankruptcy_impact",
+        "notes": "",
+        "sample_size": 306,
+        "status": "pass",
+        "threshold": "abs(bankruptcy_rate_with_finance - without_finance) < 0.10",
+        "title": "金融業私人放貸是否過度影響破產率",
+        "value": 0.005
+      },
+      {
+        "key": "winner_stock_share",
+        "notes": "",
+        "sample_size": 306,
+        "status": "pass",
+        "threshold": "winner stock share between 0.10 and 0.30",
+        "title": "真實股價的尺度是否可玩",
+        "value": 0.1639
+      }
+    ],
+    "passed": true,
+    "status_counts": {
+      "pass": 13
+    }
+  },
+  "summary": {
+    "completed_games": 306,
+    "event_counts": {
+      "alliance_bailout_attempted": 1511,
+      "alliance_bailout_succeeded": 1479,
+      "alliance_dissolved": 32,
+      "alliance_formed": 492,
+      "alliance_member_left": 32,
+      "alliance_proposal_resolved": 492,
+      "alliance_proposed": 492,
+      "alliance_ruined": 32,
+      "bankruptcy_threshold_reached": 57,
+      "bid_cancelled": 180,
+      "bid_lost": 1832,
+      "bid_placed": 5635,
+      "bid_won": 3581,
+      "card_drawn": 18452,
+      "career_changed": 102,
+      "cash_adjusted": 14605,
+      "confinement_advanced": 2466,
+      "confinement_released": 1346,
+      "daily_roll_used": 149434,
+      "daily_settlement_completed": 2025,
+      "dice_rolled": 163966,
+      "education_progressed": 843,
+      "education_started": 885,
+      "health_check_resolved": 16600,
+      "health_check_triggered": 16757,
+      "landing_dispatched": 163966,
+      "loan_payment_made": 1253,
+      "pending_effect_added": 2934,
+      "phase_advanced": 496,
+      "player_bankrupted": 142,
+      "player_confined": 1379,
+      "player_modifier_added": 4464,
+      "player_moved": 164855,
+      "property_mortgaged": 259,
+      "property_purchased": 1780,
+      "property_sold_to_bank": 158,
+      "quarterly_affairs_triggered": 16757,
+      "rent_paid": 78127,
+      "salary_paid": 12805,
+      "stock_bought": 2911,
+      "stock_liquidated": 305,
+      "stock_price_advanced": 830000,
+      "treasury_adjusted": 6861,
+      "turn_skipped": 2466,
+      "vehicle_liquidated": 28,
+      "vehicle_purchased": 532,
+      "vehicle_upkeep_paid": 5067
+    },
+    "failed_games": 0,
+    "games": 306,
+    "modes": {
+      "blitz": 150,
+      "daily": 156
+    },
+    "strategies": {
+      "mixed": 306
+    }
+  }
+}

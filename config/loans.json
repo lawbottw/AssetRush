@@ -1,5 +1,5 @@
 {
-  "version": "2026.08.3",
+  "version": "v1.0-validated",
   "_doc": "docs/01-game-rules.md §12 借貸與破產、docs/02-game-balance.md §10",
 
   "_access": "貸款不是棋盤格。申請與還款都在「通過起點的季度事務」辦理，唯一例外是購地/升級時可當場開立房貸（見 origination_points）。",

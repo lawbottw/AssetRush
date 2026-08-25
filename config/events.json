@@ -1,5 +1,5 @@
 {
-  "version": "2026.08.3",
+  "version": "v1.0-validated",
   "_doc": "docs/02-game-balance.md §5 機會與命運卡表",
   "_mechanics": "抽後放回（每次獨立抽取，不做牌堆）。NW = 該玩家當前總資產、Q = 季薪、M = 月薪。使用相對值的卡片能自動適應貧富差距。",
   "_invariant": "opportunity 與 fate 的 weight 各自總和為 100。",
@@ -77,8 +77,8 @@
     { "id": "F03", "name": "房屋臨時修繕",   "weight": 4, "category": "accident", "effect": { "type": "pay", "amount": 120000 } },
     { "id": "F21", "name": "工作過勞停工",   "weight": 3, "category": "income",   "effect": { "type": "pay", "amount": 40000 } },
 
-    { "id": "F04", "name": "車禍受傷",   "weight": 5, "category": "accident", "effect": { "type": "pay", "amount": 150000, "paid_to": "medical_system", "halved_if_no_vehicle": true, "legal_issue": "car_accident_liability", "contestable_by": "lawyer" }, "hospitalize": 2 },
-    { "id": "F05", "name": "手機摔壞",   "weight": 8, "category": "accident", "effect": { "type": "pay", "amount": 25000 } },
+    { "id": "F04", "name": "車禍受傷",   "weight": 9, "category": "accident", "effect": { "type": "pay", "amount": 80000, "paid_to": "medical_system", "halved_if_no_vehicle": true, "legal_issue": "car_accident_liability", "contestable_by": "lawyer" }, "hospitalize": 2 },
+    { "id": "F05", "name": "手機摔壞",   "weight": 4, "category": "accident", "effect": { "type": "pay", "amount": 25000 } },
     { "id": "F06", "name": "家中失竊",   "weight": 4, "category": "accident", "effect": { "type": "pay", "formula": "NW * 0.02" } },
 
     { "id": "F07", "name": "超速罰單",   "weight": 8, "category": "penalty",  "effect": { "type": "pay", "formula": "6000 * (1 + used_vehicle_extra_step)", "legal_issue": "traffic_ticket", "contestable_by": "lawyer" } },
@@ -112,7 +112,7 @@
     "_note": "issue #8 後一般疾病移出命運卡，改為每圈健康檢定。此處權重仍總和 100；醫療險保費需改由 health 檢定表重算，放到 M3。"
   },
   "_confinement_summary": {
-    "hospitalize_total_weight": 5,
+    "hospitalize_total_weight": 9,
     "jail_total_weight": 7,
     "_note": "一般疾病不再由命運格觸發，住院主要來自每圈健康檢定；命運卡僅保留事故型住院。頻率刻意壓低：跳過回合是遊戲中最不好玩的懲罰，它應該是記憶點而不是常態。"
   },

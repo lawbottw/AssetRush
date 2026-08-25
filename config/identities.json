@@ -1,5 +1,5 @@
 {
-  "version": "2026.08.3",
+  "version": "v1.0-validated",
   "_doc": "docs/02-game-balance.md §1 — 家境抽取。機率依主計總處家庭財富分配統計的偏斜形狀設定。",
   "_invariant": "weight 總和必須為 100。期望起始總資產約 $447,600，此值被 endgame.json 的動態門檻公式引用。",
 
@@ -8,8 +8,8 @@
       "key": "indebted",
       "name": "負債家庭",
       "weight": 8,
-      "starting_cash": 50000,
-      "student_loan": 300000,
+      "starting_cash": 120000,
+      "student_loan": 220000,
       "student_loan_rate_per_lap": 0.005,
       "grants": []
     },
@@ -24,9 +24,9 @@
       "key": "comfortable",
       "name": "小康家庭",
       "weight": 30,
-      "starting_cash": 350000,
+      "starting_cash": 280000,
       "grants": [
-        { "type": "stock", "pick": "random", "value": 150000 },
+        { "type": "stock", "pick": "random", "value": 100000 },
         { "type": "vehicle", "pick": "scooter", "chance": 0.10 }
       ]
     },
@@ -34,21 +34,20 @@
       "key": "middle_class",
       "name": "中產家庭",
       "weight": 15,
-      "starting_cash": 700000,
+      "starting_cash": 420000,
       "grants": [
-        { "type": "property", "pick": "median_tier", "level": 0 },
-        { "type": "vehicle", "pick": "scooter_or_domestic", "chance": 0.20 }
+        { "type": "stock", "pick": "random", "value": 140000 },
+        { "type": "vehicle", "pick": "scooter_or_domestic", "chance": 0.15 }
       ]
     },
     {
       "key": "wealthy",
       "name": "富裕家庭",
       "weight": 5,
-      "starting_cash": 1500000,
+      "starting_cash": 650000,
       "grants": [
-        { "type": "property", "pick": "top_quartile", "level": 0 },
-        { "type": "stock", "pick": "random", "value": 500000 },
-        { "type": "vehicle", "pick": "domestic", "chance": 0.35 }
+        { "type": "stock", "pick": "random", "value": 180000 },
+        { "type": "vehicle", "pick": "domestic", "chance": 0.25 }
       ]
     }
   ],

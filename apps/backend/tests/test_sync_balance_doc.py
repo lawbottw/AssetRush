@@ -24,8 +24,8 @@ def test_generate_summary_contains_m1_config_surface() -> None:
     assert "Config version" in summary
     assert "Effect types" in summary
     assert "發票" not in summary
-    assert "有效進修 50%" in summary
-    assert "打水飄 50%" in summary
+    assert "有效進修 80%" in summary
+    assert "打水飄 20%" in summary
 
 
 def test_replace_generated_block_replaces_existing_block() -> None:

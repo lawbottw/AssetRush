@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import json
+import random
+from dataclasses import replace
 from pathlib import Path
 
 from assetrush.config_bundle import load_raw_config
 from assetrush.engine.event_codec import event_from_dict, event_to_dict
 from assetrush.sim.runner import (
     RunnerSpec,
+    _run_daily_day,
     apply_command_payload,
     available_cli_commands,
     create_initial_state,
@@ -98,3 +101,47 @@ def test_stock_education_strategy_executes_quarterly_choices_after_passing_start
     assert "salary_paid" in event_types
     assert "stock_bought" in event_types
     assert "education_started" in event_types
+
+
+def test_runner_can_skip_replay_digest_for_large_simulation_batches() -> None:
+    config = load_raw_config(CONFIG_DIR)
+    result = run_auto_game(
+        RunnerSpec(
+            mode="blitz",
+            player_count=2,
+            seed="skip-replay",
+            game_id="skip-replay",
+            strategy="mixed",
+            max_turns=300,
+            verify_replay=False,
+        ),
+        config,
+    )
+
+    assert result.completed is True
+    assert result.replay_checked is False
+    assert result.replay_verified is False
+    assert result.final_digest == ""
+    assert result.replay_digest == ""
+
+
+def test_daily_runner_skips_bankrupt_players_instead_of_looping_forever() -> None:
+    config = load_raw_config(CONFIG_DIR)
+    state = create_initial_state(
+        RunnerSpec(
+            mode="daily",
+            player_count=2,
+            seed="bankrupt-skip",
+            game_id="bankrupt-skip",
+        ),
+        config,
+    )
+    bankrupt_player = replace(state.player("p1"), is_bankrupt=True)
+    state = replace(state, players=(bankrupt_player, state.player("p2")))
+    events = []
+
+    next_state = _run_daily_day(state, "mixed", 0, config, random.Random(0), events)
+
+    assert next_state.day == state.day + 1
+    assert next_state.player("p1").rolls_used_today == 0
+    assert any(event.type == "daily_settlement_completed" for event in events)

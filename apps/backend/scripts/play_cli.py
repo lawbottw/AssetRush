@@ -66,7 +66,8 @@ def _run(args: argparse.Namespace) -> int:
                 "final_phase": result.final_state.phase,
                 "final_digest": _digest_hash(result.final_digest),
                 "replay_digest": _digest_hash(result.replay_digest),
-                "replay_verified": result.final_digest == result.replay_digest,
+                "replay_checked": result.replay_checked,
+                "replay_verified": result.replay_verified,
                 "completed": result.completed,
             },
             ensure_ascii=False,
@@ -177,7 +178,15 @@ def _strategy_name(value: str) -> StrategyName:
 
 
 def _strategy_choices() -> tuple[StrategyName, ...]:
-    return ("conservative", "aggressive", "random", "stock_education")
+    return (
+        "conservative",
+        "aggressive",
+        "random",
+        "stock_education",
+        "vehicle",
+        "alliance",
+        "mixed",
+    )
 
 
 def _write_events(path: Path, events: Sequence[Event]) -> None:

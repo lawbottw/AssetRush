@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 
 from assetrush.engine import (
@@ -51,6 +53,34 @@ def test_daily_take_turn_consumes_fixed_roll_budget() -> None:
         execute_command(
             transition.state,
             TakeTurnCommand(type="take_turn", player_id="p1"),
+            game_config(),
+        )
+
+
+def test_vehicle_owner_can_spend_configured_extra_movement_step() -> None:
+    state = turn_state(player_ids=("p1",))
+    state = replace(state, players=(replace(state.player("p1"), vehicles=("scooter",)),))
+
+    transition = execute_command(
+        state,
+        TakeTurnCommand(type="take_turn", player_id="p1", extra_move_steps=1),
+        game_config(),
+    )
+
+    moved = transition.events[1]
+    assert moved.type == "player_moved"
+    assert moved.position_after == (roll_d6("seed", "game", 1, "p1") + 1) % 8
+    assert moved.reason == "turn_roll_vehicle"
+    assert state_digest(replay_events(state, transition.events)) == state_digest(transition.state)
+
+
+def test_extra_vehicle_movement_requires_an_owned_vehicle() -> None:
+    state = turn_state(player_ids=("p1",))
+
+    with pytest.raises(InvalidCommandError, match="vehicle allowance"):
+        execute_command(
+            state,
+            TakeTurnCommand(type="take_turn", player_id="p1", extra_move_steps=1),
             game_config(),
         )
 
@@ -218,5 +248,15 @@ def game_config() -> dict[str, object]:
                 }
             ],
             "tax_office": {"brackets": [{"up_to": None, "rate": 0.10}]},
-        }
+        },
+        "vehicles": {
+            "vehicles": [
+                {
+                    "key": "scooter",
+                    "price": 80_000,
+                    "move_choice_extra": 1,
+                    "upkeep_per_turn": 1_000,
+                }
+            ]
+        },
     }
