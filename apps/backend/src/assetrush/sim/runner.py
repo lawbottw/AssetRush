@@ -15,9 +15,11 @@ from assetrush.engine import (
     GameState,
     InvalidCommandError,
     PlacePropertyBidCommand,
+    ProposeAllianceCommand,
     PurchasePropertyCommand,
     QuarterlyChoices,
     ResolveCashShortfallCommand,
+    RespondAllianceProposalCommand,
     RunDailySettlementCommand,
     RunQuarterlyAffairsCommand,
     TakeTurnCommand,
@@ -32,7 +34,15 @@ from assetrush.engine.events import Event
 from assetrush.engine.state import BoardTile, GamePhase, PlayerState
 
 ConfigSnapshot = Mapping[str, object]
-StrategyName = Literal["conservative", "aggressive", "random", "stock_education"]
+StrategyName = Literal[
+    "conservative",
+    "aggressive",
+    "random",
+    "stock_education",
+    "vehicle",
+    "alliance",
+    "mixed",
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,7 +53,9 @@ class RunnerSpec:
     game_id: str = "cli-game"
     target_minutes: int | None = None
     strategy: StrategyName = "conservative"
+    strategy_offset: int = 0
     max_turns: int = 1000
+    verify_replay: bool = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +66,8 @@ class GameRunResult:
     events: tuple[Event, ...]
     replay_digest: str
     final_digest: str
+    replay_checked: bool
+    replay_verified: bool
     turns_executed: int
     completed: bool
 
@@ -62,7 +76,7 @@ def available_cli_commands() -> tuple[dict[str, object], ...]:
     return (
         {
             "type": "take_turn",
-            "fields": {"player_id": "string"},
+            "fields": {"player_id": "string", "extra_move_steps": "integer, optional"},
             "description": "Roll deterministic dice and dispatch the landing for a player.",
         },
         {
@@ -109,6 +123,7 @@ def run_auto_game(
     initial = create_initial_state(spec, config, towns)
     working = initial
     events: list[Event] = []
+    working = _seed_runner_alliances(working, spec.strategy, config, events)
     turns_executed = 0
     rng = random.Random(f"{spec.seed}:{spec.strategy}")
 
@@ -117,10 +132,14 @@ def run_auto_game(
             break
         before_turn = working.turn_seq
         if working.mode == "daily":
-            working = _run_daily_day(working, spec.strategy, config, rng, events)
+            working = _run_daily_day(
+                working, spec.strategy, spec.strategy_offset, config, rng, events
+            )
         else:
             player_id = _next_blitz_player_id(working)
-            working = _run_player_turn(working, player_id, spec.strategy, config, rng, events)
+            working = _run_player_turn(
+                working, player_id, spec.strategy, spec.strategy_offset, config, rng, events
+            )
         turns_executed += max(1, working.turn_seq - before_turn)
         working = _resolve_negative_cash_players(working, config, events)
 
@@ -148,16 +167,25 @@ def run_auto_game(
             events,
         )
 
-    replayed = replay_events(initial, events)
+    final_digest = ""
+    replay_digest = ""
+    replay_verified = False
+    if spec.verify_replay:
+        final_digest = state_digest(working)
+        replayed = replay_events(initial, events)
+        replay_digest = state_digest(replayed)
+        replay_verified = replay_digest == final_digest
     return GameRunResult(
         spec=spec,
         initial_state=initial,
         final_state=working,
         events=tuple(events),
-        replay_digest=state_digest(replayed),
-        final_digest=state_digest(working),
+        replay_digest=replay_digest,
+        final_digest=final_digest,
+        replay_checked=spec.verify_replay,
+        replay_verified=replay_verified,
         turns_executed=turns_executed,
-        completed=working.phase == "finished" and state_digest(replayed) == state_digest(working),
+        completed=working.phase == "finished" and (not spec.verify_replay or replay_verified),
     )
 
 
@@ -189,7 +217,11 @@ def replay_event_stream(initial_state: GameState, events: Iterable[Event]) -> tu
 def command_from_dict(payload: Mapping[str, Any]) -> Command:
     command_type = payload.get("type")
     if command_type == "take_turn":
-        return TakeTurnCommand(type="take_turn", player_id=_string(payload, "player_id"))
+        return TakeTurnCommand(
+            type="take_turn",
+            player_id=_string(payload, "player_id"),
+            extra_move_steps=_optional_int(payload.get("extra_move_steps")),
+        )
     if command_type == "purchase_property":
         return PurchasePropertyCommand(
             type="purchase_property",
@@ -274,6 +306,7 @@ def synthetic_towns(config: ConfigSnapshot) -> list[dict[str, object]]:
 def _run_daily_day(
     state: GameState,
     strategy: StrategyName,
+    strategy_offset: int,
     config: ConfigSnapshot,
     rng: random.Random,
     events: list[Event],
@@ -281,12 +314,17 @@ def _run_daily_day(
     working = state
     if working.rolls_per_day is None:
         raise InvalidCommandError("daily runner requires rolls_per_day")
-    for player_id in _daily_player_order(working):
+    for player_id in daily_player_order(working):
+        if _player_exited(working.player(player_id)):
+            continue
         while (
             working.phase == "active"
+            and not _player_exited(working.player(player_id))
             and working.player(player_id).rolls_used_today < working.rolls_per_day
         ):
-            working = _run_player_turn(working, player_id, strategy, config, rng, events)
+            working = _run_player_turn(
+                working, player_id, strategy, strategy_offset, config, rng, events
+            )
             working = _resolve_negative_cash_players(working, config, events)
     if working.phase != "active":
         return working
@@ -305,22 +343,28 @@ def _run_player_turn(
     state: GameState,
     player_id: str,
     strategy: StrategyName,
+    strategy_offset: int,
     config: ConfigSnapshot,
     rng: random.Random,
     events: list[Event],
 ) -> GameState:
-    if state.player(player_id).is_bankrupt or state.player(player_id).has_quit:
+    if _player_exited(state.player(player_id)):
         return state
+    player_strategy = _player_strategy(strategy, player_id, strategy_offset)
     transition = execute_command(
         state,
-        TakeTurnCommand(type="take_turn", player_id=player_id),
+        TakeTurnCommand(
+            type="take_turn",
+            player_id=player_id,
+            extra_move_steps=_vehicle_extra_move_steps(state, player_id, player_strategy, config),
+        ),
         config,
     )
     events.extend(transition.events)
     return _apply_strategy_after_turn(
         transition.state,
         player_id,
-        strategy,
+        player_strategy,
         config,
         rng,
         events,
@@ -390,6 +434,8 @@ def _maybe_run_quarterly(
     choices = QuarterlyChoices()
     if strategy == "stock_education":
         choices = _stock_education_choices(state, player_id, config)
+    elif strategy == "vehicle":
+        choices = _vehicle_choices(state, player_id, config)
     elif strategy == "random" and rng.random() < 0.5:
         choices = _random_quarterly_choices(state, player_id, config, rng)
     try:
@@ -414,14 +460,18 @@ def _stock_education_choices(
 ) -> QuarterlyChoices:
     player = state.player(player_id)
     stock_code = _first_stock_code(config)
+    career_change_to = _best_education_career(player, config)
     course_key, tuition = _first_affordable_course(config, player)
     buy_value = 0
     if stock_code is not None and player.cash > 120_000:
-        buy_value = min(100_000, max(0, player.cash // 4))
+        buy_value = min(500_000, max(0, player.cash * 3 // 5))
     return QuarterlyChoices(
         buy_stock_code=stock_code if buy_value > 0 else None,
         buy_stock_value=buy_value,
-        education_course_key=course_key if tuition <= player.cash - buy_value else None,
+        education_course_key=(
+            course_key if career_change_to is None and tuition <= player.cash - buy_value else None
+        ),
+        career_change_to=career_change_to,
     )
 
 
@@ -438,6 +488,37 @@ def _random_quarterly_choices(
     return QuarterlyChoices(
         buy_stock_code=stock_code if rng.random() < 0.5 else None,
         buy_stock_value=min(50_000, max(0, player.cash // 5)),
+    )
+
+
+def _vehicle_choices(
+    state: GameState,
+    player_id: str,
+    config: ConfigSnapshot,
+) -> QuarterlyChoices:
+    player = state.player(player_id)
+    vehicle_key, price = _first_affordable_vehicle(config, player)
+    if vehicle_key is None:
+        return QuarterlyChoices()
+    return QuarterlyChoices(vehicle_key=vehicle_key if player.cash - price >= 80_000 else None)
+
+
+def _vehicle_extra_move_steps(
+    state: GameState,
+    player_id: str,
+    strategy: StrategyName,
+    config: ConfigSnapshot,
+) -> int:
+    if strategy != "vehicle":
+        return 0
+    player = state.player(player_id)
+    return max(
+        (
+            _int_value(vehicle.get("move_choice_extra"), "vehicle.move_choice_extra")
+            for vehicle in _vehicle_rows(config)
+            if vehicle.get("key") in player.vehicles
+        ),
+        default=0,
     )
 
 
@@ -462,6 +543,81 @@ def _resolve_negative_cash_players(
                 events,
             )
     return working
+
+
+def _player_exited(player: PlayerState) -> bool:
+    return player.is_bankrupt or player.has_quit
+
+
+def _seed_runner_alliances(
+    state: GameState,
+    strategy: StrategyName,
+    config: ConfigSnapshot,
+    events: list[Event],
+) -> GameState:
+    if strategy not in {"alliance", "mixed"} or len(state.players) < 4:
+        return state
+
+    working = state
+    pair_count = max(1, len(state.players) // 4)
+    for pair_index in range(pair_count):
+        left_index = pair_index * 2
+        right_index = left_index + 1
+        if right_index >= len(working.players):
+            break
+        left = working.players[left_index].id
+        right = working.players[right_index].id
+        proposal_id = f"runner-alliance-{pair_index + 1}"
+        try:
+            working = _apply_runner_command(
+                working,
+                ProposeAllianceCommand(
+                    type="propose_alliance",
+                    from_player_id=left,
+                    to_player_id=right,
+                    tier="couple",
+                    proposal_id=proposal_id,
+                ),
+                config,
+                events,
+            )
+            working = _apply_runner_command(
+                working,
+                RespondAllianceProposalCommand(
+                    type="respond_alliance_proposal",
+                    proposal_id=proposal_id,
+                    accepted=True,
+                    alliance_id=f"runner-alliance:{pair_index + 1}",
+                ),
+                config,
+                events,
+            )
+        except InvalidCommandError:
+            continue
+    return working
+
+
+def player_strategy(
+    global_strategy: StrategyName, player_id: str, strategy_offset: int = 0
+) -> StrategyName:
+    return _player_strategy(global_strategy, player_id, strategy_offset)
+
+
+def _player_strategy(
+    global_strategy: StrategyName, player_id: str, strategy_offset: int
+) -> StrategyName:
+    if global_strategy != "mixed":
+        return global_strategy
+    cycle: tuple[StrategyName, ...] = (
+        "conservative",
+        "aggressive",
+        "stock_education",
+        "vehicle",
+        "random",
+    )
+    suffix = "".join(char for char in player_id if char.isdigit())
+    index = int(suffix) - 1 if suffix else sum(ord(char) for char in player_id)
+    return cycle[(index + strategy_offset) % len(cycle)]
 
 
 def _apply_runner_command(
@@ -504,11 +660,14 @@ def _next_blitz_player_id(state: GameState) -> str:
     return alive[state.turn_seq % len(alive)]
 
 
-def _daily_player_order(state: GameState) -> tuple[str, ...]:
+def daily_player_order(state: GameState) -> tuple[str, ...]:
     if state.mode != "daily":
         return state.base_turn_order
-    offset = (state.day - 1) % len(state.base_turn_order)
-    return state.base_turn_order[offset:] + state.base_turn_order[:offset]
+    # The simulation scheduler must not give a stable base-order seat first access every day.
+    rng = random.Random(f"{state.server_seed}:{state.id}:daily-order:{state.day}")
+    order = list(state.base_turn_order)
+    rng.shuffle(order)
+    return tuple(order)
 
 
 def _strategy_wants_property(
@@ -523,7 +682,7 @@ def _strategy_wants_property(
     if strategy == "conservative":
         return player.cash - base_price >= 150_000
     if strategy == "stock_education":
-        return player.cash - base_price >= 250_000
+        return player.cash - base_price >= 75_000
     return player.cash >= base_price and rng.random() < 0.5
 
 
@@ -557,9 +716,75 @@ def _first_affordable_course(
         course = _mapping(raw_course, "course")
         key = course.get("key")
         tuition = course.get("tuition")
-        if isinstance(key, str) and isinstance(tuition, int) and player.cash >= tuition:
+        unlocked_tier = course.get("unlocks_tier")
+        if (
+            isinstance(key, str)
+            and isinstance(tuition, int)
+            and isinstance(unlocked_tier, int)
+            and unlocked_tier > (player.education_unlocked_tier or 0)
+            and player.cash >= tuition
+        ):
             return key, tuition
     return None, 0
+
+
+def _best_education_career(player: PlayerState, config: ConfigSnapshot) -> str | None:
+    unlocked_tier = player.education_unlocked_tier
+    if unlocked_tier is None:
+        return None
+    occupations = _mapping(config.get("occupations"), "config.occupations")
+    rows = [
+        _mapping(row, "occupation") for row in _list(occupations.get("occupations"), "occupations")
+    ]
+    current_tier = next(
+        (
+            _int_value(row.get("tier"), "occupation.tier")
+            for row in rows
+            if row.get("key") == player.occupation_key
+        ),
+        1,
+    )
+    eligible = [
+        row
+        for row in rows
+        if current_tier < _int_value(row.get("tier"), "occupation.tier") <= unlocked_tier
+    ]
+    if not eligible:
+        return None
+    target = max(
+        eligible,
+        key=lambda row: (
+            _int_value(row.get("monthly_salary"), "occupation.monthly_salary"),
+            _string(row, "key"),
+        ),
+    )
+    return _string(target, "key")
+
+
+def _first_affordable_vehicle(
+    config: ConfigSnapshot,
+    player: PlayerState,
+) -> tuple[str | None, int]:
+    for vehicle in _vehicle_rows(config):
+        key = vehicle.get("key")
+        price = vehicle.get("price")
+        if (
+            isinstance(key, str)
+            and key != "none"
+            and key not in player.vehicles
+            and isinstance(price, int)
+            and player.cash >= price
+        ):
+            return key, price
+    return None, 0
+
+
+def _vehicle_rows(config: ConfigSnapshot) -> list[Mapping[str, object]]:
+    vehicles = _mapping(config.get("vehicles"), "config.vehicles")
+    return [
+        _mapping(vehicle, "vehicle")
+        for vehicle in _list(vehicles.get("vehicles"), "vehicles.vehicles")
+    ]
 
 
 def _quarterly_choices_from_dict(payload: Mapping[str, Any]) -> QuarterlyChoices:
@@ -612,6 +837,12 @@ def _int(payload: Mapping[str, Any], key: str) -> int:
     value = payload.get(key)
     if isinstance(value, bool) or not isinstance(value, int):
         raise ValueError(f"{key} must be an integer")
+    return value
+
+
+def _int_value(value: object, field_name: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{field_name} must be an integer")
     return value
 
 

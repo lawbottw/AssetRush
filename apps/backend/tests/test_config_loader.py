@@ -17,7 +17,7 @@ CONFIG_DIR = Path(__file__).resolve().parents[3] / "config"
 def test_current_config_loads_successfully() -> None:
     config = validate_config_bundle(load_raw_config(CONFIG_DIR))
 
-    assert config.version == "2026.08.3"
+    assert config.version == "v1.0-validated"
     assert len(config.events.opportunity) == 22
     assert config.events.opportunity[0].effect.type == "gain"
 

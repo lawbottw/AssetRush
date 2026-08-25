@@ -846,13 +846,13 @@ $180,000 開局可買 1 格中價地（$130,000）或 3–4 格偏鄉地。以�
 
 | 項目 | 摘要 |
 |---|---|
-| Config version | `2026.08.3` |
+| Config version | `v1.0-validated` |
 | 事件卡 | 機會 22 張 / 權重 100；命運 25 張 / 權重 100 |
 | Effect types | `buff`, `confiscate_stock_gains`, `downgrade_property`, `free_alliance_proposal`, `free_upgrade`, `gain`, `gain_from_treasury`, `legal_case`, `move`, `move_to_tile`, `no_salary`, `none`, `pay`, `pay_to_treasury`, `rent_modifier`, `risky_investment_offer`, `salary_modifier`, `stock_shock`, `vehicle_sell_offer` |
 | 地產等級 | L0 素地 租金 6.0%；L1 套房 租金 15.0%；L2 公寓 租金 30.0%；L3 大樓 租金 55.0%；L4 商辦／飯店 租金 90.0% |
 | 貸款產品 | 信用貸款(啟用)；房屋抵押貸款(啟用)；股票質押(停用)；就學貸款(啟用)；金融業私人放貸(啟用) |
-| 進修結果 | 完成時擲結果：有效進修 50% / 打水飄 50%；失敗不退費 |
-| 進修課程 | 職訓／證照班 $60,000；在職專班 $250,000；MBA $800,000 |
+| 進修結果 | 完成時擲結果：有效進修 80% / 打水飄 20%；失敗不退費 |
+| 進修課程 | 職訓／證照班 $50,000；在職專班 $250,000；MBA $800,000 |
 | 保險 | 醫療險；意外險；住宅火險；責任險 |
 | 棋盤 layout | 16格:6功能格；22格:8功能格；25格:8功能格；28格:8功能格；32格:10功能格；36格:10功能格；48格:13功能格 |
 | 六大區域 | 北北基(3)；桃竹苗(4)；中彰投(3)；雲嘉南(4)；高屏(2)；宜花東離島(6) |

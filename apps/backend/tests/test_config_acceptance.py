@@ -4,9 +4,11 @@ import json
 import shutil
 from pathlib import Path
 
+import pytest
+
 from assetrush.config_bundle import load_raw_config
 from assetrush.engine import GameState, PlayerState
-from assetrush.engine.config_models import GameConfig, validate_config_bundle
+from assetrush.engine.config_models import ConfigValidationError, GameConfig, validate_config_bundle
 from assetrush.engine.effects import EffectContext, apply_effect
 
 CONFIG_DIR = Path(__file__).resolve().parents[3] / "config"
@@ -53,6 +55,18 @@ def test_acceptance_new_invoice_jackpot_card_uses_existing_gain_handler(
 
     assert next_state.player("p1").cash == 10000000
     assert events_out[0].reason == "O99"
+
+
+def test_acceptance_card_cannot_define_jail_and_hospitalize_together(tmp_path: Path) -> None:
+    config_dir = _copy_config(tmp_path)
+    events_path = config_dir / "events.json"
+    events = _read_json(events_path)
+    events["fate"][0]["jail"] = 1
+    events["fate"][0]["hospitalize"] = 1
+    _write_json(events_path, events)
+
+    with pytest.raises(ConfigValidationError, match="cannot jail and hospitalize together"):
+        _load(config_dir)
 
 
 def test_acceptance_loan_product_can_be_removed_without_hardcoded_count(tmp_path: Path) -> None:

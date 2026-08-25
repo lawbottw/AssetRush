@@ -92,6 +92,31 @@ def _sample_property_towns(
     seed: int,
     property_tiles: int,
 ) -> list[Town]:
+    last_error: BoardSamplingError | None = None
+    for attempt in range(32):
+        try:
+            return _sample_property_towns_once(
+                towns,
+                board_config,
+                seed=seed + attempt,
+                property_tiles=property_tiles,
+            )
+        except BoardSamplingError as exc:
+            last_error = exc
+    if last_error is None:
+        raise BoardSamplingError("property town sampling did not run")
+    raise BoardSamplingError(
+        f"cannot satisfy board sampling constraints after 32 attempts: {last_error}"
+    )
+
+
+def _sample_property_towns_once(
+    towns: Sequence[Town],
+    board_config: ConfigSnapshot,
+    *,
+    seed: int,
+    property_tiles: int,
+) -> list[Town]:
     constraints = _constraints(property_tiles)
     tier_weight = _tier_weight(board_config)
     rng = random.Random(seed)

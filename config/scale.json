@@ -1,5 +1,5 @@
 {
-  "version": "2026.08.3",
+  "version": "v1.0-validated",
   "_doc": "docs/02-game-balance.md §0 — 尺度基準。這個檔案決定了其他所有數字的量級，改動前請重讀該節推導。",
 
   "currency": {

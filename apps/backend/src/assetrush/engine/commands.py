@@ -132,6 +132,7 @@ class ApplyActionCommand:
 class TakeTurnCommand:
     type: Literal["take_turn"]
     player_id: str
+    extra_move_steps: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -468,6 +469,7 @@ def _take_turn(state: GameState, command: TakeTurnCommand, config: ConfigSnapsho
 
     player = state.player(command.player_id)
     _require_player_not_bankrupt(player)
+    _validate_vehicle_extra_move(player, command.extra_move_steps, config)
     if state.mode == "blitz":
         _validate_blitz_turn(state, command.player_id)
     else:
@@ -512,9 +514,9 @@ def _take_turn(state: GameState, command: TakeTurnCommand, config: ConfigSnapsho
         MovePlayerAction(
             type="move_player",
             player_id=command.player_id,
-            steps=dice,
+            steps=dice + command.extra_move_steps,
             total_tiles=board.total_tiles,
-            reason="turn_roll",
+            reason="turn_roll_vehicle" if command.extra_move_steps > 0 else "turn_roll",
         ),
         config,
     )
@@ -1888,8 +1890,12 @@ def _execute_standing_orders(
 ) -> GameState:
     working = state
     for player_id in _daily_player_order(working):
+        if _has_player_exited(working.player(player_id)):
+            continue
         executed = 0
-        while working.player(player_id).rolls_used_today < _daily_roll_limit(working):
+        while not _has_player_exited(working.player(player_id)) and working.player(
+            player_id
+        ).rolls_used_today < _daily_roll_limit(working):
             transition = _take_turn(
                 working,
                 TakeTurnCommand(type="take_turn", player_id=player_id),
@@ -2482,6 +2488,22 @@ def _draw_and_apply_card(
         ),
     )
     events.extend(effect_events)
+    confinement = _card_confinement(card)
+    if confinement is not None:
+        kind, turns = confinement
+        transition = _confine_player(
+            working,
+            ConfinePlayerCommand(
+                type="confine_player",
+                player_id=player_id,
+                kind=kind,
+                turns=turns,
+                reason=event.card_id,
+            ),
+            config,
+        )
+        working = transition.state
+        events.extend(transition.events)
     return working, events
 
 
@@ -2503,6 +2525,18 @@ def _draw_card(
         if marker < running:
             return card
     return _mapping(cards[-1], "card")
+
+
+def _card_confinement(card: ConfigSnapshot) -> tuple[ConfinementKind, int] | None:
+    jail_turns = card.get("jail")
+    hospital_turns = card.get("hospitalize")
+    if jail_turns is not None and hospital_turns is not None:
+        raise InvalidCommandError("card cannot jail and hospitalize together")
+    if jail_turns is not None:
+        return "jail", _int(jail_turns, "card.jail")
+    if hospital_turns is not None:
+        return "hospital", _int(hospital_turns, "card.hospitalize")
+    return None
 
 
 def _apply_tax_office(
@@ -2965,6 +2999,30 @@ def _vehicle_upkeep(vehicle_key: str, config: ConfigSnapshot) -> Money:
     return _int(vehicle.get("upkeep_per_turn"), "vehicle.upkeep_per_turn")
 
 
+def _validate_vehicle_extra_move(
+    player: PlayerState,
+    extra_move_steps: int,
+    config: ConfigSnapshot,
+) -> None:
+    if extra_move_steps < 0:
+        raise InvalidCommandError("extra_move_steps cannot be negative")
+    maximum = max(
+        (
+            _int(
+                _vehicle_row(vehicle_key, config).get("move_choice_extra"),
+                "vehicle.move_choice_extra",
+            )
+            for vehicle_key in player.vehicles
+            if vehicle_key != "none"
+        ),
+        default=0,
+    )
+    if extra_move_steps > maximum:
+        raise InvalidCommandError(
+            f"extra_move_steps exceeds vehicle allowance: {extra_move_steps} > {maximum}"
+        )
+
+
 def _insurance_rows(config: ConfigSnapshot) -> list[ConfigSnapshot]:
     insurance = _mapping(config.get("insurance"), "config.insurance")
     return [
@@ -3182,8 +3240,12 @@ def _confinement_release_cost(
 
 
 def _require_player_not_bankrupt(player: PlayerState) -> None:
-    if player.is_bankrupt or player.has_quit:
+    if _has_player_exited(player):
         raise InvalidCommandError(f"player has exited: {player.id}")
+
+
+def _has_player_exited(player: PlayerState) -> bool:
+    return player.is_bankrupt or player.has_quit
 
 
 def _require_property_operation_allowed(player: PlayerState, operation: str) -> None:

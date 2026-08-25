@@ -66,7 +66,7 @@ def start_game(
         config=config,
         board=board,
     )
-    threshold = _net_worth_threshold(config, players, board, size.lap_limit)
+    threshold = _net_worth_threshold(config, players, board, size.lap_limit, spec.mode)
     reached_threshold = any(_net_worth(player, board) >= threshold for player in players)
     phase: GamePhase = "settling" if reached_threshold else "active"
 
@@ -193,6 +193,7 @@ def _draw_players(
     wellbeing = _mapping(config.get("wellbeing"), "config.wellbeing")
     stocks_config = _mapping(config.get("stocks"), "config.stocks")
     loans_config = _mapping(config.get("loans"), "config.loans")
+    vehicles_config = _mapping(config.get("vehicles"), "config.vehicles")
     backgrounds = _list(identities.get("backgrounds"), "identities.backgrounds")
     occupations = _list(occupations_config.get("occupations"), "occupations.occupations")
 
@@ -220,7 +221,7 @@ def _draw_players(
                 stock_holdings=stock_holdings,
                 property_tile_indices=property_indices,
                 loans=loans,
-                vehicles=_starting_vehicles(background, rng),
+                vehicles=_starting_vehicles(background, vehicles_config, rng),
             )
         )
     return tuple(players)
@@ -312,7 +313,11 @@ def _starting_loans(
     )
 
 
-def _starting_vehicles(background: ConfigSnapshot, rng: random.Random) -> tuple[str, ...]:
+def _starting_vehicles(
+    background: ConfigSnapshot,
+    vehicles_config: ConfigSnapshot,
+    rng: random.Random,
+) -> tuple[str, ...]:
     vehicles: list[str] = []
     for grant in _list(background.get("grants", []), "background.grants"):
         row = _mapping(grant, "grant")
@@ -320,8 +325,28 @@ def _starting_vehicles(background: ConfigSnapshot, rng: random.Random) -> tuple[
             continue
         chance = _float(row.get("chance", 1.0), "vehicle chance")
         if rng.random() <= chance:
-            vehicles.append(_string(row.get("pick"), "vehicle pick"))
+            vehicles.append(
+                _resolve_vehicle_grant(
+                    _string(row.get("pick"), "vehicle pick"), vehicles_config, rng
+                )
+            )
     return tuple(vehicles)
+
+
+def _resolve_vehicle_grant(
+    pick: str,
+    vehicles_config: ConfigSnapshot,
+    rng: random.Random,
+) -> str:
+    if pick == "scooter_or_domestic":
+        pick = ("scooter", "domestic")[rng.randrange(2)]
+    vehicle_keys = {
+        _string(_mapping(row, "vehicle").get("key"), "vehicle.key")
+        for row in _list(vehicles_config.get("vehicles"), "vehicles.vehicles")
+    }
+    if pick not in vehicle_keys:
+        raise GameSetupError(f"unknown vehicle grant: {pick}")
+    return pick
 
 
 def _pick_property_tile(
@@ -382,6 +407,7 @@ def _net_worth_threshold(
     players: Sequence[PlayerState],
     board: BoardReference,
     lap_limit: int,
+    mode: GameMode,
 ) -> Money:
     endgame = _mapping(config.get("endgame"), "config.endgame")
     threshold = _mapping(endgame.get("net_worth_threshold"), "endgame.net_worth_threshold")
@@ -397,7 +423,24 @@ def _net_worth_threshold(
         threshold.get("max_starting_multiplier"),
         "max_starting_multiplier",
     )
-    return round(max(first, second))
+    mode_multipliers = _mapping(
+        threshold.get("mode_multiplier", {}), "net_worth_threshold.mode_multiplier"
+    )
+    multiplier = _float(
+        mode_multipliers.get(mode, 1.0), f"net_worth_threshold.mode_multiplier.{mode}"
+    )
+    crowded_multiplier = threshold.get("crowded_game_multiplier")
+    if isinstance(crowded_multiplier, Mapping):
+        min_players = _int(
+            crowded_multiplier.get("min_players"),
+            "net_worth_threshold.crowded_game_multiplier.min_players",
+        )
+        if len(players) >= min_players:
+            multiplier *= _float(
+                crowded_multiplier.get("multiplier"),
+                "net_worth_threshold.crowded_game_multiplier.multiplier",
+            )
+    return round(max(first, second) * multiplier)
 
 
 def _net_worth(player: PlayerState, board: BoardReference) -> Money:

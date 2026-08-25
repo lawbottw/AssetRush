@@ -1,5 +1,5 @@
 {
-  "version": "2026.08.3",
+  "version": "v1.0-validated",
   "_doc": "docs/02-game-balance.md §2 職業抽取、§7 職業發展",
   "_anchor": "主計總處 113 年：經常性薪資中位數 $38,689、平均 $49,060。本表固定薪資加權平均約 $46,660（偏低 5%），但網紅與房仲沒有底薪，需靠職業技能取得變動收入。工程師不再區分半導體與非半導體。",
   "_invariant": "weight 總和必須為 100。",
@@ -228,20 +228,21 @@
     "_note": "在學期間薪水減半。課程完成時才揭曉成效：50% 是有效進修，50% 是包裝成進修的割韭菜產品，學費與時間都打水飄。進修不再是穩定套利，而是高風險翻身路徑。",
     "outcome": {
       "roll_at": "completion",
-      "success_chance": 0.5,
-      "failure_chance": 0.5,
+      "success_chance": 0.8,
+      "failure_chance": 0.2,
       "success_result": "unlock_course_reward",
       "failure_result": "no_unlock_no_promotion_no_skill",
       "refund_on_failure": false,
       "_note": "失敗代表課程內容包裝精美但沒有實質能力提升，例如「XX 天學會 AI」類產品。玩家仍已付學費並消耗在學圈數。"
     },
     "courses": [
-      { "key": "vocational", "name": "職訓／證照班", "tuition": 60000, "turns": 2, "unlocks_tier": 2 },
+      { "key": "vocational", "name": "職訓／證照班", "tuition": 50000, "turns": 1, "unlocks_tier": 2,
+        "permanent_salary_multiplier": 1.10 },
       { "key": "part_time_master", "name": "在職專班", "tuition": 250000, "turns": 3, "unlocks_tier": 3 },
       { "key": "mba", "name": "MBA", "tuition": 800000, "turns": 4, "unlocks_tier": 3,
         "permanent_salary_multiplier": 1.2 }
     ],
-    "salary_multiplier_while_studying": 0.5,
+    "salary_multiplier_while_studying": 0.8,
     "online_enroll_fee": 10000
   },
 

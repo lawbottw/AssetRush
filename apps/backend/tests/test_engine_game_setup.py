@@ -117,6 +117,25 @@ def test_daily_large_board_satisfies_sampling_constraints_and_layout_rules() -> 
     assert sum(1 for count in county_counts.values() if 2 <= count <= 3) >= 7
 
 
+def test_crowded_daily_net_worth_threshold_uses_configured_multiplier() -> None:
+    config = load_raw_config(CONFIG_DIR)
+    baseline_config = deepcopy(config)
+    baseline_config["endgame"]["net_worth_threshold"]["crowded_game_multiplier"]["multiplier"] = 1.0
+    towns = synthetic_towns(config)
+    spec = GameStartSpec(
+        game_id="daily-crowded-threshold",
+        mode="daily",
+        player_ids=tuple(f"p{index}" for index in range(30)),
+        server_seed="server-seed",
+        game_seed=101,
+    )
+
+    adjusted = start_game(spec=spec, config=config, towns=towns)
+    baseline = start_game(spec=spec, config=baseline_config, towns=towns)
+
+    assert adjusted.net_worth_threshold == round(baseline.net_worth_threshold * 1.35)
+
+
 def test_starting_assets_are_drawn_from_config_and_board() -> None:
     config = force_background(load_raw_config(CONFIG_DIR), "wealthy")
     towns = synthetic_towns(config)
@@ -131,10 +150,9 @@ def test_starting_assets_are_drawn_from_config_and_board() -> None:
     state = start_game(spec=spec, config=config, towns=towns)
 
     assert all(player.background_key == "wealthy" for player in state.players)
-    assert all(player.cash == 1_500_000 for player in state.players)
-    assert all(player.stock_holdings[0].value == 500_000 for player in state.players)
-    assert all(len(player.property_tile_indices) == 1 for player in state.players)
-    assert len({player.property_tile_indices[0] for player in state.players}) == 2
+    assert all(player.cash == 650_000 for player in state.players)
+    assert all(player.stock_holdings[0].value == 180_000 for player in state.players)
+    assert all(not player.property_tile_indices for player in state.players)
 
 
 def test_student_loan_starting_debt_is_recorded() -> None:
@@ -152,8 +170,8 @@ def test_student_loan_starting_debt_is_recorded() -> None:
 
     assert all(player.background_key == "indebted" for player in state.players)
     assert all(player.loans[0].product_key == "student_loan" for player in state.players)
-    assert all(player.loans[0].principal == 300_000 for player in state.players)
-    assert all(player.cash == 50_000 for player in state.players)
+    assert all(player.loans[0].principal == 220_000 for player in state.players)
+    assert all(player.cash == 120_000 for player in state.players)
 
 
 def test_unsatisfied_board_constraints_raise_explicit_error() -> None:
