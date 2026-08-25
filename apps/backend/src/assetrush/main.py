@@ -9,7 +9,7 @@ from assetrush import __version__
 from assetrush.config import get_settings
 from assetrush.console import force_utf8_output, setup_app_logging
 from assetrush.db import DatabaseNotConfiguredError, dispose_engine, ping
-from assetrush.routers import health
+from assetrush.routers import games, health
 
 # 必須在 uvicorn 建立 logging handler 之前——handler 會綁定當下的 sys.stderr。
 force_utf8_output()
@@ -21,8 +21,8 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """啟動時驗證一次 Supabase 連線。
 
-    刻意**不因為連不上就 crash**：M0 還沒有任何依賴 DB 的端點，讓 `make dev`
-    因為網路抖動整個起不來只會妨礙前端開發。M4 接上持久層後改成 fail-fast。
+    M4 起 API 的所有遊戲寫入都依賴持久層，因此設定缺漏或連線失敗必須 fail-fast；
+    只有純 engine 測試與模擬可以在沒有 DB 的情況下執行。
     """
     # 在這裡而非 import 期間：要等 uvicorn 先設定好 logging 才借得到它的 handler
     setup_app_logging()
@@ -31,20 +31,25 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     try:
         latency = await ping()
     except DatabaseNotConfiguredError as exc:
-        logger.warning("Supabase 未設定：%s", exc)
-    except Exception as exc:  # noqa: BLE001 — 連線失敗的型別依 driver 而異
-        logger.error(
+        logger.critical("Supabase 未設定：%s", exc)
+        await dispose_engine()
+        raise
+    except Exception as exc:
+        logger.critical(
             "Supabase 連線失敗（%s）：%s: %s｜檢查 .env 的 DATABASE_URL 與網路連線",
             settings.supabase_ref,
             type(exc).__name__,
             exc,
         )
+        await dispose_engine()
+        raise
     else:
         logger.info("Supabase 連線正常（%s，%.0f ms）", settings.supabase_ref, latency)
 
-    yield
-
-    await dispose_engine()
+    try:
+        yield
+    finally:
+        await dispose_engine()
 
 
 app = FastAPI(
@@ -63,3 +68,4 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
+app.include_router(games.router)

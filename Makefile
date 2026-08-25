@@ -12,8 +12,9 @@ BACKEND_PORT  ?= 8000
 .DEFAULT_GOAL := help
 .PHONY: help install dev dev-frontend dev-backend build build-frontend build-backend \
         test test-frontend test-backend lint lint-frontend lint-backend \
-        check-engine check-db validate-config seed-config sync-balance-doc \
-        check-balance-doc play-cli simulate m1-check format clean ci
+        check-engine check-db migrate bootstrap-test-db verify-game m4-check \
+        validate-config seed-config sync-balance-doc \
+        check-balance-doc play-cli play-cli-offline simulate m1-check format clean ci
 
 help:               ## 列出所有 target
 	@echo "AssetRush make targets:"
@@ -75,6 +76,18 @@ check-balance-doc:  ## ★ M1：檢查 docs/02 的 config 摘要是否同步
 check-db:           ## 驗證 Supabase 連線（需要網路，刻意不掛在 lint 下）
 	cd $(BACKEND) && uv run python scripts/check_db.py
 
+migrate:            ## ★ M4：依序套用 supabase/migrations（需要 DB）
+	cd $(BACKEND) && uv run python scripts/migrate.py
+
+bootstrap-test-db:  ## M4: create Supabase primitives; refuses non-local databases
+	cd $(BACKEND) && uv run python scripts/bootstrap_test_db.py
+
+verify-game:        ## M4: replay GAME_ID and compare DB snapshots/read models
+	cd $(BACKEND) && uv run python scripts/verify_game.py --game-id $(GAME_ID)
+
+m4-check: bootstrap-test-db migrate  ## M4: isolated DB suite, including 1,000 races
+	cd $(BACKEND) && uv run pytest -q tests/test_migrations_integration.py tests/test_rls_integration.py tests/test_game_store_integration.py tests/test_games_api_integration.py tests/test_game_verifier_integration.py
+
 lint: check-engine validate-config check-balance-doc lint-backend lint-frontend  ## engine 邊界 + config + docs 同步 + 機密外洩 + ruff + mypy + eslint + tsc
 
 lint-backend:
@@ -103,8 +116,11 @@ clean:              ## 清掉建置產物與快取
 	rm -rf $(FRONTEND)/.next $(FRONTEND)/out
 	rm -rf $(BACKEND)/dist $(BACKEND)/.pytest_cache $(BACKEND)/.mypy_cache $(BACKEND)/.ruff_cache
 
-play-cli:           ## M2 text runner: MODE=daily PLAYERS=4 SEED=demo STRATEGY=conservative
-	cd $(BACKEND) && uv run python scripts/play_cli.py run --config-dir ../../config --mode $(or $(MODE),blitz) --players $(or $(PLAYERS),4) --seed $(or $(SEED),cli-seed) --strategy $(or $(STRATEGY),conservative) --max-turns $(or $(MAX_TURNS),1000)
+play-cli:           ## Persisted HTTP runner; set PLAYER_ARGS="--player-id UUID ..."
+	cd $(BACKEND) && uv run python scripts/play_cli.py run --api-url $(or $(API_URL),http://127.0.0.1:8000) --mode $(or $(MODE),blitz) --players $(or $(PLAYERS),4) $(PLAYER_ARGS) --seed $(or $(SEED),cli-seed) --game-id $(or $(GAME_ID),cli-game) --max-turns $(or $(MAX_TURNS),1000)
+
+play-cli-offline:   ## Pure local runner retained for simulation/debugging
+	cd $(BACKEND) && uv run python scripts/play_cli.py run --offline --config-dir ../../config --mode $(or $(MODE),blitz) --players $(or $(PLAYERS),4) --seed $(or $(SEED),cli-seed) --strategy $(or $(STRATEGY),conservative) --max-turns $(or $(MAX_TURNS),1000)
 
 simulate:           ## M3 Monte Carlo: GAMES=1000 MODE=daily PLAYERS=10 STRATEGY=mixed SCENARIO=single|m3-core|m3-crowded
 	cd $(BACKEND) && uv run python scripts/simulate.py --config-dir ../../config --mode $(or $(MODE),daily) --players $(or $(PLAYERS),10) --games $(or $(GAMES),1000) --seed $(or $(SEED),m3) --strategy $(or $(STRATEGY),mixed) --scenario $(or $(SCENARIO),single) --max-turns $(or $(MAX_TURNS),5000) $(if $(JSONL_OUT),--jsonl-out $(JSONL_OUT),) $(if $(REPORT_OUT),--report-out $(REPORT_OUT),) $(if $(FAIL_ON_THRESHOLD),--fail-on-threshold,) $(if $(MAX_GAME_SECONDS),--max-game-seconds $(MAX_GAME_SECONDS),) $(if $(SKIP_REPLAY),--skip-replay,)

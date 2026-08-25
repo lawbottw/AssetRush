@@ -192,6 +192,7 @@ create table games (
 
   -- 進度
   current_turn_seq  integer not null default 0,   -- 樂觀鎖版本號（兩模式共用）
+  engine_turn_seq   integer not null default 0,   -- engine 的回合／RNG 序號
   current_day       integer not null default 0,   -- 日常型：第幾天（＝第幾圈）
   current_player_id uuid,                         -- 僅即時配對型有意義
   turn_deadline     timestamptz,                  -- 僅即時配對型：20 秒倒數
@@ -209,7 +210,9 @@ create index on games (status, current_day) where status = 'active';
 create index on games (line_group_id);
 ```
 
-`current_turn_seq` 同時是**樂觀鎖的版本號**（見 [06](06-architecture.md#風險-1--並發回合競態)）。
+`current_turn_seq` 是**每個寫入 command 都遞增**的樂觀鎖版本號（見
+[06](06-architecture.md#風險-1--並發回合競態)）；`engine_turn_seq` 才是規則引擎的回合序號。
+兩者必須分開，因為購地、出價等 command 會改狀態但不推進遊戲回合。
 
 ### 4.2 `game_players`
 
@@ -497,28 +500,19 @@ create index on game_events (game_id, event_type);
 
 **這張表是整局的權威真相，且永不修改、永不刪除。**
 
-`event_type` 的完整清單：
+`event_type` 以 `apps/backend/src/assetrush/engine/event_codec.py::EVENT_TYPES` 為唯一來源。
+目前完整清單如下；新增 engine Event 時，codec round-trip 測試會要求同步更新持久化契約：
 
 | 類別 | 事件 |
 |---|---|
-| 局 | `game_started` `game_finished` `player_joined` `identity_drawn` |
-| 回合 | `turn_started` `dice_rolled` `moved` `passed_start` `turn_ended` `turn_autopiloted` |
-| 日常型 | `day_started` `player_acted` `daily_settlement` `turn_order_rotated` |
-| 季度事務 | `quarterly_affairs_opened` `quarterly_affairs_closed` |
-| 認購 | `bid_placed` `bid_raised` `bid_won` `bid_lost` `bid_refunded` |
-| 地產 | `property_bought` `property_upgraded` `rent_paid` `property_mortgaged` `property_redeemed` `property_sold_bank` `monopoly_formed` |
-| 交易 | `offer_created` `offer_accepted` `offer_rejected` `offer_expired` |
-| 股票 | `stock_bought` `stock_sold` `dividend_paid` `prices_updated` |
-| 職涯 | `study_started` `study_completed` `occupation_changed` `side_job_started` |
-| 資產 | `vehicle_bought` `vehicle_sold` `vehicle_depreciated` |
-| 保險 | `policy_bought` `policy_cancelled` `premium_paid` `insurance_payout` |
-| 財務 | `salary_paid` `bonus_paid` `interest_charged` `tax_paid` |
-| 借貸 | `loan_taken` `loan_repaid` `minimum_payment` `loan_defaulted` `blacklisted` `margin_call` |
-| 卡片 | `card_drawn` `card_resolved` |
-| 監禁 | `jailed` `jail_escaped` `bailed_out` `jail_released` |
-| 醫療 | `hospitalized` `discharged_early` `discharged` |
-| 家庭 | `alliance_proposed` `alliance_formed` `alliance_dissolved` `member_joined` `member_left` `household_fee_paid` `pool_distributed` `bailout_attempted` `bailout_succeeded` `family_ruined` |
-| 破產 | `liquidation_step` `bankrupted` |
+| 通用狀態 | `cash_adjusted` `treasury_adjusted` `phase_advanced` `player_modifier_added` `pending_effect_added` |
+| 回合與卡片 | `dice_rolled` `player_moved` `daily_roll_used` `landing_dispatched` `card_drawn` `health_check_triggered` `turn_skipped` |
+| 日常型與認購 | `bid_placed` `bid_raised` `bid_cancelled` `bid_won` `bid_lost` `standing_orders_executed` `daily_settlement_completed` |
+| 地產 | `property_purchased` `property_upgraded` `rent_paid` `property_mortgaged` `property_redeemed` `property_sold_to_bank` |
+| 季度事務 | `quarterly_affairs_triggered` `salary_paid` `stock_price_advanced` `stock_bought` `stock_sold` `loan_opened` `loan_payment_made` `vehicle_purchased` `vehicle_upkeep_paid` `insurance_purchased` `insurance_premium_paid` `education_started` `education_progressed` `career_changed` `health_check_resolved` |
+| 交易與清算 | `trade_offer_invalidated` `loan_defaulted` `player_blacklisted` `stock_liquidated` `vehicle_liquidated` `family_bailout_applied` `private_loan_rescue` `player_bankrupted` `bankruptcy_threshold_reached` |
+| 監禁／醫療 | `player_confined` `confinement_advanced` `confinement_released` `confinement_release_paid` |
+| 家庭 | `alliance_proposed` `alliance_formed` `alliance_proposal_resolved` `alliance_member_joined` `alliance_member_left` `alliance_tier_changed` `alliance_dissolved` `alliance_pool_contributed` `alliance_pool_paid` `alliance_pool_distributed` `alliance_bailout_attempted` `alliance_bailout_succeeded` `alliance_ruined` |
 
 ### 5.2 為什麼要事件溯源
 
@@ -598,25 +592,18 @@ Supabase 的 RLS 是唯一擋在前端與資料之間的東西——前端直連
 
 ### 6.1 通則
 
-```sql
--- 所有 State 層資料表
-alter table games            enable row level security;
-alter table game_players     enable row level security;
-alter table board_tiles      enable row level security;
-alter table properties       enable row level security;
-alter table holdings         enable row level security;
-alter table game_events      enable row level security;
-alter table trade_offers     enable row level security;
-alter table standing_orders  enable row level security;
-```
+`users`、所有 State 表、私有 `game_snapshots`、`game_events`、`trade_offers` 與
+`standing_orders` 全部啟用 RLS。完整清單與 grants 以
+`20260825000400_rls_policies.sql` 為準；migration integration test 會從 catalog 確認沒有漏表。
 
 判斷「我是否在這局」的 helper：
 
 ```sql
 create or replace function is_in_game(g uuid)
-returns boolean language sql security definer stable as $$
+returns boolean language sql security definer stable
+set search_path = '' as $$
   select exists (
-    select 1 from game_players
+    select 1 from public.game_players
     where game_id = g and user_id = auth.uid()
   );
 $$;
@@ -642,8 +629,8 @@ $$;
 create policy "同局可讀" on properties
   for select using (is_in_game(game_id));
 
-create policy "僅本人可讀寫" on standing_orders
-  for all using (
+create policy "僅本人可讀" on standing_orders
+  for select using (
     player_id in (select id from game_players where user_id = auth.uid())
   );
 
@@ -654,7 +641,16 @@ create policy "僅收發雙方" on trade_offers
   );
 ```
 
-`games.server_seed` 無法用資料列級的 RLS 遮蔽單一欄位，處理方式是**該欄位不透過 PostgREST 暴露**：建立一個排除 `server_seed` 的 view 給前端讀，原表只允許 service_role 存取。
+欄位級私密資料不靠 RLS 猜測：
+
+- 前端讀 `games_public`，不包含 `server_seed`；結束後才可呼叫 `get_finished_game_seed()`。
+- 前端讀 `holdings_public`，本人需要成本價時呼叫 `get_my_holdings()`。
+- 前端讀 `alliance_members_public`，同家庭成員需要持份時呼叫
+  `get_my_alliance_members()`。
+- `game_snapshots` 永不授權給 `anon` / `authenticated`。
+
+上述 view 使用 `security_invoker`，RPC 使用 `security definer` 時固定空 `search_path`、完整限定
+schema，並在函式內再次驗證 `auth.uid()`。
 
 ### 6.3 寫入一律走 FastAPI
 
@@ -714,11 +710,11 @@ create index on users (line_user_id);
 
 ```
 supabase/migrations/
-  20260806000001_init_reference.sql     -- towns, stocks, stock_prices, market_calendar
-  20260806000002_init_config.sql        -- game_configs
-  20260806000003_init_state.sql         -- games, game_players, board_tiles, properties...
-  20260806000004_init_events.sql        -- game_events, trade_offers, standing_orders
-  20260806000005_rls_policies.sql       -- 所有 RLS
+  20260810000000_init_config.sql             -- game_configs
+  20260825000100_init_identity_reference.sql -- users + Reference 層
+  20260825000200_init_state.sql              -- 正規化 State + 私有 lossless snapshots
+  20260825000300_init_events.sql             -- game_events + 非同步輔助表
+  20260825000400_rls_policies.sql            -- 所有 RLS（M4 #36）
 ```
 
 由 `make migrate` 執行。RLS 政策獨立成一個 migration，因為它會被反覆調整——政策改動不該和 schema 改動混在同一個檔案裡。

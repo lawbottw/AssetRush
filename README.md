@@ -29,12 +29,14 @@ make dev           # frontend :3000 + backend :8000（Ctrl+C 一起收掉）
 make dev-frontend  # 只起 Next.js
 make dev-backend   # 只起 FastAPI
 make check-db      # 驗證 Supabase 連線
+make migrate       # 依序套用 supabase/migrations（有 checksum 防竄改）
 make ci            # lint + test + build，等同 CI 會跑的東西
 make check-engine  # ★ 只跑 engine 零 I/O 邊界檢查
 make help          # 列出全部 target
 ```
 
-沒填 `.env` 也起得來——M0 還沒有任何端點依賴 DB，啟動時只會記一則警告。
+執行 migration、seed 或 M4 對局 API 時必須提供 `DATABASE_URL`；一般離線 engine
+測試與模擬不需要資料庫。
 
 ## 環境變數
 
@@ -108,5 +110,5 @@ apps/frontend/       Next.js 15
 
 ## 目前進度
 
-M0 專案骨架。P1（純規則引擎 + 蒙地卡羅）尚未開始——**規則與數值都還沒定稿**，
-細節見 [docs/10-milestones.md](docs/10-milestones.md)。
+M0–M3 已完成：專案骨架、Config、純規則引擎、CLI 與數值驗證均已落地。目前進行
+M4 資料庫與持久層，細節見 [docs/10-milestones.md](docs/10-milestones.md)。
