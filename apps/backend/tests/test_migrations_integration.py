@@ -31,8 +31,7 @@ async def test_migrations_apply_and_daily_blitz_snapshots_round_trip() -> None:
     assert TEST_DATABASE_URL is not None
     connection = await asyncpg.connect(asyncpg_dsn(TEST_DATABASE_URL))
     try:
-        await connection.execute("create schema if not exists auth")
-        await connection.execute("create table if not exists auth.users (id uuid primary key)")
+        await _bootstrap_supabase_primitives(connection)
         migrations = discover_migrations(REPO_ROOT / "supabase" / "migrations")
         await apply_migrations(connection, migrations)
 
@@ -73,6 +72,35 @@ async def test_migrations_apply_and_daily_blitz_snapshots_round_trip() -> None:
             await transaction.rollback()
     finally:
         await connection.close()
+
+
+async def _bootstrap_supabase_primitives(connection: asyncpg.Connection) -> None:
+    await connection.execute(
+        """
+        do $$
+        begin
+          if not exists (select 1 from pg_roles where rolname = 'anon') then
+            create role anon nologin;
+          end if;
+          if not exists (select 1 from pg_roles where rolname = 'authenticated') then
+            create role authenticated nologin;
+          end if;
+          if not exists (select 1 from pg_roles where rolname = 'service_role') then
+            create role service_role nologin bypassrls;
+          end if;
+        end
+        $$;
+        create schema if not exists auth;
+        create table if not exists auth.users (id uuid primary key);
+        create or replace function auth.uid()
+        returns uuid
+        language sql
+        stable
+        as $$
+          select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid;
+        $$;
+        """
+    )
 
 
 async def _assert_snapshot_round_trip(

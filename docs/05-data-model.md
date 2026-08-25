@@ -589,25 +589,18 @@ Supabase 的 RLS 是唯一擋在前端與資料之間的東西——前端直連
 
 ### 6.1 通則
 
-```sql
--- 所有 State 層資料表
-alter table games            enable row level security;
-alter table game_players     enable row level security;
-alter table board_tiles      enable row level security;
-alter table properties       enable row level security;
-alter table holdings         enable row level security;
-alter table game_events      enable row level security;
-alter table trade_offers     enable row level security;
-alter table standing_orders  enable row level security;
-```
+`users`、所有 State 表、私有 `game_snapshots`、`game_events`、`trade_offers` 與
+`standing_orders` 全部啟用 RLS。完整清單與 grants 以
+`20260825000400_rls_policies.sql` 為準；migration integration test 會從 catalog 確認沒有漏表。
 
 判斷「我是否在這局」的 helper：
 
 ```sql
 create or replace function is_in_game(g uuid)
-returns boolean language sql security definer stable as $$
+returns boolean language sql security definer stable
+set search_path = '' as $$
   select exists (
-    select 1 from game_players
+    select 1 from public.game_players
     where game_id = g and user_id = auth.uid()
   );
 $$;
@@ -633,8 +626,8 @@ $$;
 create policy "同局可讀" on properties
   for select using (is_in_game(game_id));
 
-create policy "僅本人可讀寫" on standing_orders
-  for all using (
+create policy "僅本人可讀" on standing_orders
+  for select using (
     player_id in (select id from game_players where user_id = auth.uid())
   );
 
@@ -645,7 +638,16 @@ create policy "僅收發雙方" on trade_offers
   );
 ```
 
-`games.server_seed` 無法用資料列級的 RLS 遮蔽單一欄位，處理方式是**該欄位不透過 PostgREST 暴露**：建立一個排除 `server_seed` 的 view 給前端讀，原表只允許 service_role 存取。
+欄位級私密資料不靠 RLS 猜測：
+
+- 前端讀 `games_public`，不包含 `server_seed`；結束後才可呼叫 `get_finished_game_seed()`。
+- 前端讀 `holdings_public`，本人需要成本價時呼叫 `get_my_holdings()`。
+- 前端讀 `alliance_members_public`，同家庭成員需要持份時呼叫
+  `get_my_alliance_members()`。
+- `game_snapshots` 永不授權給 `anon` / `authenticated`。
+
+上述 view 使用 `security_invoker`，RPC 使用 `security definer` 時固定空 `search_path`、完整限定
+schema，並在函式內再次驗證 `auth.uid()`。
 
 ### 6.3 寫入一律走 FastAPI
 
