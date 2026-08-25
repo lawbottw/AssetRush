@@ -1,1 +1,23 @@
-"""engine ↔ DB 的橋接層。所有 advisory lock 都在這一層（鐵律 3）。"""
+"""Application services bridging the pure engine and infrastructure."""
+
+from assetrush.services.game_store import (
+    GameAlreadyExistsError,
+    GameNotFoundError,
+    GameStore,
+    GameStoreError,
+    PersistedTransition,
+    PersistenceContractError,
+    StaleTurnError,
+    StoredGame,
+)
+
+__all__ = [
+    "GameAlreadyExistsError",
+    "GameNotFoundError",
+    "GameStore",
+    "GameStoreError",
+    "PersistedTransition",
+    "PersistenceContractError",
+    "StaleTurnError",
+    "StoredGame",
+]

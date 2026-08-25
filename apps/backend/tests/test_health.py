@@ -79,16 +79,26 @@ def test_health_db_connection_error(monkeypatch: pytest.MonkeyPatch, client: Tes
     assert "connection refused" in body["detail"]
 
 
-def test_startup_survives_db_outage(monkeypatch: pytest.MonkeyPatch) -> None:
-    """DB 連不上時服務仍要起得來——M0 沒有任何端點依賴 DB。"""
+def test_startup_fails_fast_on_db_outage(monkeypatch: pytest.MonkeyPatch) -> None:
+    """M4 寫入全部依賴 DB；啟動時不能留下半可用 API。"""
 
     async def _down() -> float:
         raise OSError("connection refused")
 
     monkeypatch.setattr("assetrush.main.ping", _down)
     monkeypatch.setattr("assetrush.main.dispose_engine", _noop)
-    with TestClient(app) as c:
-        assert c.get("/health").status_code == 200
+    with pytest.raises(OSError, match="connection refused"), TestClient(app):
+        pass
+
+
+def test_startup_fails_fast_without_database_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def _unset() -> float:
+        raise DatabaseNotConfiguredError("DATABASE_URL 未設定")
+
+    monkeypatch.setattr("assetrush.main.ping", _unset)
+    monkeypatch.setattr("assetrush.main.dispose_engine", _noop)
+    with pytest.raises(DatabaseNotConfiguredError, match="DATABASE_URL"), TestClient(app):
+        pass
 
 
 def test_startup_configures_app_logging(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -149,7 +159,11 @@ def test_startup_logs_failure(
     monkeypatch.setattr("assetrush.main.ping", _down)
     monkeypatch.setattr("assetrush.main.dispose_engine", _noop)
 
-    with caplog.at_level(logging.ERROR, logger="assetrush.main"), TestClient(app):
+    with (
+        caplog.at_level(logging.CRITICAL, logger="assetrush.main"),
+        pytest.raises(OSError, match="connection refused"),
+        TestClient(app),
+    ):
         pass
 
     assert any("Supabase 連線失敗" in r.message for r in caplog.records)

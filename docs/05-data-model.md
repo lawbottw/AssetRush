@@ -192,6 +192,7 @@ create table games (
 
   -- 進度
   current_turn_seq  integer not null default 0,   -- 樂觀鎖版本號（兩模式共用）
+  engine_turn_seq   integer not null default 0,   -- engine 的回合／RNG 序號
   current_day       integer not null default 0,   -- 日常型：第幾天（＝第幾圈）
   current_player_id uuid,                         -- 僅即時配對型有意義
   turn_deadline     timestamptz,                  -- 僅即時配對型：20 秒倒數
@@ -209,7 +210,9 @@ create index on games (status, current_day) where status = 'active';
 create index on games (line_group_id);
 ```
 
-`current_turn_seq` 同時是**樂觀鎖的版本號**（見 [06](06-architecture.md#風險-1--並發回合競態)）。
+`current_turn_seq` 是**每個寫入 command 都遞增**的樂觀鎖版本號（見
+[06](06-architecture.md#風險-1--並發回合競態)）；`engine_turn_seq` 才是規則引擎的回合序號。
+兩者必須分開，因為購地、出價等 command 會改狀態但不推進遊戲回合。
 
 ### 4.2 `game_players`
 

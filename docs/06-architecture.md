@@ -113,6 +113,10 @@ async with db.begin():
 
 `pg_advisory_xact_lock` 在 transaction 結束時自動釋放，不會有忘記解鎖的問題。以 `game_id` 為鎖鍵，不同局之間完全不互相阻塞。
 
+資料庫的 `current_turn_seq` 是每個成功寫入都加一的 optimistic version；engine 自己的
+回合序號另存 `engine_turn_seq`。不能共用同一欄，否則購地、出價等不推進回合的寫入無法
+讓舊 request 失效。
+
 **每一個會改變局狀態的 API 都必須走這個模式。** 這條規則寫進 `CLAUDE.md`。
 
 **`daily_settlement` 的額外要求：冪等。**
