@@ -8,6 +8,7 @@ from assetrush.services.game_store import (
     PersistedTransition,
     PersistenceContractError,
     StaleTurnError,
+    StoredEvent,
     StoredGame,
 )
 
@@ -19,5 +20,6 @@ __all__ = [
     "PersistedTransition",
     "PersistenceContractError",
     "StaleTurnError",
+    "StoredEvent",
     "StoredGame",
 ]

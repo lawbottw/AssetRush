@@ -9,7 +9,7 @@ from assetrush import __version__
 from assetrush.config import get_settings
 from assetrush.console import force_utf8_output, setup_app_logging
 from assetrush.db import DatabaseNotConfiguredError, dispose_engine, ping
-from assetrush.routers import health
+from assetrush.routers import games, health
 
 # 必須在 uvicorn 建立 logging handler 之前——handler 會綁定當下的 sys.stderr。
 force_utf8_output()
@@ -68,3 +68,4 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
+app.include_router(games.router)

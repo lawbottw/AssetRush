@@ -13,7 +13,7 @@ BACKEND_PORT  ?= 8000
 .PHONY: help install dev dev-frontend dev-backend build build-frontend build-backend \
         test test-frontend test-backend lint lint-frontend lint-backend \
         check-engine check-db migrate validate-config seed-config sync-balance-doc \
-        check-balance-doc play-cli simulate m1-check format clean ci
+        check-balance-doc play-cli play-cli-offline simulate m1-check format clean ci
 
 help:               ## 列出所有 target
 	@echo "AssetRush make targets:"
@@ -106,8 +106,11 @@ clean:              ## 清掉建置產物與快取
 	rm -rf $(FRONTEND)/.next $(FRONTEND)/out
 	rm -rf $(BACKEND)/dist $(BACKEND)/.pytest_cache $(BACKEND)/.mypy_cache $(BACKEND)/.ruff_cache
 
-play-cli:           ## M2 text runner: MODE=daily PLAYERS=4 SEED=demo STRATEGY=conservative
-	cd $(BACKEND) && uv run python scripts/play_cli.py run --config-dir ../../config --mode $(or $(MODE),blitz) --players $(or $(PLAYERS),4) --seed $(or $(SEED),cli-seed) --strategy $(or $(STRATEGY),conservative) --max-turns $(or $(MAX_TURNS),1000)
+play-cli:           ## Persisted HTTP runner; set PLAYER_ARGS="--player-id UUID ..."
+	cd $(BACKEND) && uv run python scripts/play_cli.py run --api-url $(or $(API_URL),http://127.0.0.1:8000) --mode $(or $(MODE),blitz) --players $(or $(PLAYERS),4) $(PLAYER_ARGS) --seed $(or $(SEED),cli-seed) --game-id $(or $(GAME_ID),cli-game) --max-turns $(or $(MAX_TURNS),1000)
+
+play-cli-offline:   ## Pure local runner retained for simulation/debugging
+	cd $(BACKEND) && uv run python scripts/play_cli.py run --offline --config-dir ../../config --mode $(or $(MODE),blitz) --players $(or $(PLAYERS),4) --seed $(or $(SEED),cli-seed) --strategy $(or $(STRATEGY),conservative) --max-turns $(or $(MAX_TURNS),1000)
 
 simulate:           ## M3 Monte Carlo: GAMES=1000 MODE=daily PLAYERS=10 STRATEGY=mixed SCENARIO=single|m3-core|m3-crowded
 	cd $(BACKEND) && uv run python scripts/simulate.py --config-dir ../../config --mode $(or $(MODE),daily) --players $(or $(PLAYERS),10) --games $(or $(GAMES),1000) --seed $(or $(SEED),m3) --strategy $(or $(STRATEGY),mixed) --scenario $(or $(SCENARIO),single) --max-turns $(or $(MAX_TURNS),5000) $(if $(JSONL_OUT),--jsonl-out $(JSONL_OUT),) $(if $(REPORT_OUT),--report-out $(REPORT_OUT),) $(if $(FAIL_ON_THRESHOLD),--fail-on-threshold,) $(if $(MAX_GAME_SECONDS),--max-game-seconds $(MAX_GAME_SECONDS),) $(if $(SKIP_REPLAY),--skip-replay,)

@@ -3,17 +3,31 @@
 from __future__ import annotations
 
 import json
+import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from uuid import UUID
+from typing import cast
+from uuid import UUID, uuid5
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from assetrush.engine import Command, Event, GameState, execute_command, player_net_worth
+from assetrush.engine import (
+    BoardSamplingError,
+    Command,
+    Event,
+    GameMode,
+    GameStartSpec,
+    GameState,
+    derive_u64,
+    execute_command,
+    player_net_worth,
+    start_game,
+)
 from assetrush.engine.event_codec import event_to_dict
 from assetrush.engine.replay import state_digest
 from assetrush.persistence import state_from_dict, state_to_dict
+from assetrush.sim.runner import synthetic_towns
 
 
 class GameStoreError(RuntimeError):
@@ -53,11 +67,103 @@ class PersistedTransition:
     version: int
 
 
+@dataclass(frozen=True, slots=True)
+class StoredEvent:
+    id: int
+    payload: dict[str, object]
+
+
 class GameStore:
     """Persist game commands behind one advisory-lock transaction boundary."""
 
     def __init__(self, sessionmaker: async_sessionmaker[AsyncSession]) -> None:
         self._sessionmaker = sessionmaker
+
+    async def create_from_spec(
+        self,
+        *,
+        game_id: UUID,
+        mode: str,
+        player_ids: tuple[UUID, ...],
+        host_user_id: UUID,
+        target_minutes: int | None = None,
+        seed: str | None = None,
+    ) -> StoredGame:
+        if host_user_id not in player_ids:
+            raise PersistenceContractError("host_user_id must be one of player_ids")
+        async with self._sessionmaker() as session:
+            known_player_ids = set(
+                await session.scalars(
+                    text(
+                        """
+                        select id
+                          from public.users
+                         where id = any(cast(:player_ids as uuid[]))
+                        """
+                    ),
+                    {"player_ids": list(player_ids)},
+                )
+            )
+            missing_player_ids = set(player_ids) - known_player_ids
+            if missing_player_ids:
+                missing = ", ".join(str(player_id) for player_id in sorted(missing_player_ids))
+                raise PersistenceContractError(f"unknown player_ids: {missing}")
+            row = (
+                (
+                    await session.execute(
+                        text(
+                            """
+                        select version, payload
+                          from public.game_configs
+                         where is_active
+                        """
+                        )
+                    )
+                )
+                .mappings()
+                .one_or_none()
+            )
+            if row is None:
+                raise PersistenceContractError("no active game config")
+            config = _json_object(row["payload"], "active game config")
+            towns = [
+                dict(item)
+                for item in (
+                    await session.execute(
+                        text(
+                            """
+                            select code, name, county, region,
+                                   cast(avg_price_per_ping as bigint) as avg_price_per_ping,
+                                   price_tier, population
+                              from public.towns
+                             where is_active and avg_price_per_ping is not null
+                                   and price_tier is not null
+                            """
+                        )
+                    )
+                ).mappings()
+            ]
+
+        server_seed = seed or secrets.token_hex(32)
+        spec = GameStartSpec(
+            game_id=str(game_id),
+            mode=_game_mode(mode),
+            player_ids=tuple(str(player_id) for player_id in player_ids),
+            server_seed=server_seed,
+            game_seed=derive_u64(server_seed, str(game_id), "game-seed", 0) % (2**63 - 1),
+            target_minutes=target_minutes,
+        )
+        try:
+            state = start_game(spec=spec, config=config, towns=towns or synthetic_towns(config))
+        except BoardSamplingError:
+            if not towns:
+                raise
+            state = start_game(spec=spec, config=config, towns=synthetic_towns(config))
+        return await self.create_game(
+            state,
+            host_user_id=host_user_id,
+            target_minutes=target_minutes,
+        )
 
     async def create_game(
         self,
@@ -151,6 +257,44 @@ class GameStore:
     async def get_game(self, game_id: UUID) -> StoredGame:
         async with self._sessionmaker() as session:
             return await _load_game(session, game_id)
+
+    async def get_events(
+        self,
+        game_id: UUID,
+        *,
+        after_id: int = 0,
+        limit: int = 200,
+    ) -> tuple[StoredEvent, ...]:
+        if limit < 1 or limit > 500:
+            raise ValueError("event limit must be between 1 and 500")
+        async with self._sessionmaker() as session:
+            exists = await session.scalar(
+                text("select 1 from public.games where id = :game_id"),
+                {"game_id": game_id},
+            )
+            if exists is None:
+                raise GameNotFoundError(str(game_id))
+            rows = (
+                await session.execute(
+                    text(
+                        """
+                        select id, payload
+                          from public.game_events
+                         where game_id = :game_id and id > :after_id
+                         order by id
+                         limit :limit
+                        """
+                    ),
+                    {"game_id": game_id, "after_id": after_id, "limit": limit},
+                )
+            ).mappings()
+            return tuple(
+                StoredEvent(
+                    id=int(row["id"]),
+                    payload=_json_object(row["payload"], "event payload"),
+                )
+                for row in rows
+            )
 
     async def execute(
         self,
@@ -254,7 +398,7 @@ class GameStore:
                     "event_seq": _event_seq(payload),
                     "turn_seq": state.turn_seq,
                     "round_no": state.day,
-                    "actor_id": _optional_uuid(payload.get("player_id")),
+                    "actor_id": _optional_player_row_id(game_id, payload.get("player_id")),
                     "event_type": str(payload["type"]),
                     "payload": _json(payload),
                 }
@@ -406,7 +550,8 @@ async def _materialize_players(session: AsyncSession, game_id: UUID, state: Game
     order = {player_id: index for index, player_id in enumerate(state.base_turn_order)}
     colors = ("red", "blue", "green", "amber", "violet", "cyan", "pink", "lime")
     for index, player in enumerate(state.players):
-        player_id = _uuid(player.id, "player id")
+        user_id = _uuid(player.id, "player id")
+        player_id = _player_row_id(game_id, user_id)
         confinement = player.confinement
         await session.execute(
             text(
@@ -461,7 +606,7 @@ async def _materialize_players(session: AsyncSession, game_id: UUID, state: Game
             {
                 "id": player_id,
                 "game_id": game_id,
-                "user_id": player_id,
+                "user_id": user_id,
                 "base_turn_order": order.get(player.id, index),
                 "player_color": colors[index % len(colors)],
                 "background_key": player.background_key,
@@ -544,8 +689,8 @@ async def _materialize_trade_offers(session: AsyncSession, game_id: UUID, state:
             {
                 "id": _uuid(offer.offer_id, "trade offer id"),
                 "game_id": game_id,
-                "from_player": _uuid(offer.from_player_id, "trade offer sender"),
-                "to_player": _uuid(offer.to_player_id, "trade offer recipient"),
+                "from_player": _player_row_id(game_id, offer.from_player_id),
+                "to_player": _player_row_id(game_id, offer.to_player_id),
                 "cash_frozen": offer.cash_frozen,
                 "property_tile_indices": list(offer.property_tile_indices),
                 "give_payload": _json(
@@ -576,7 +721,7 @@ async def _materialize_properties(session: AsyncSession, game_id: UUID, state: G
             {
                 "game_id": game_id,
                 "tile_idx": tile.index,
-                "owner_id": _uuid(item.owner_id, "property owner") if item else None,
+                "owner_id": _player_row_id(game_id, item.owner_id) if item else None,
                 "level": item.level if item else 0,
                 "invested": item.invested if item else 0,
                 "is_mortgaged": item.mortgaged if item else False,
@@ -615,7 +760,7 @@ async def _materialize_bids(session: AsyncSession, game_id: UUID, state: GameSta
             {
                 "game_id": game_id,
                 "tile_idx": bid.tile_index,
-                "player_id": _uuid(bid.player_id, "bid player"),
+                "player_id": _player_row_id(game_id, bid.player_id),
                 "bid_amount": bid.bid_amount,
                 "game_day": bid.day,
             }
@@ -641,7 +786,7 @@ async def _materialize_stocks(session: AsyncSession, game_id: UUID, state: GameS
     holdings = [
         {
             "game_id": game_id,
-            "player_id": _uuid(player.id, "holding player"),
+            "player_id": _player_row_id(game_id, player.id),
             "stock_code": holding.code,
             "value": holding.value,
         }
@@ -696,7 +841,7 @@ async def _materialize_alliances(session: AsyncSession, game_id: UUID, state: Ga
                 "name": alliance.name,
                 "pool_balance": alliance.pool_balance,
                 "core_partner_ids": (
-                    [_uuid(value, "core partner") for value in alliance.core_partner_ids]
+                    [_player_row_id(game_id, value) for value in alliance.core_partner_ids]
                     if alliance.core_partner_ids
                     else None
                 ),
@@ -717,7 +862,7 @@ async def _materialize_alliances(session: AsyncSession, game_id: UUID, state: Ga
             [
                 {
                     "alliance_id": alliance_id,
-                    "player_id": _uuid(player_id, "alliance member"),
+                    "player_id": _player_row_id(game_id, player_id),
                     "contributed": member_state[player_id].contributed
                     if player_id in member_state
                     else 0,
@@ -744,8 +889,8 @@ async def _materialize_alliances(session: AsyncSession, game_id: UUID, state: Ga
             {
                 "id": _uuid(proposal.id, "alliance proposal id"),
                 "game_id": game_id,
-                "from_player_id": _uuid(proposal.from_player_id, "proposal sender"),
-                "to_player_id": _uuid(proposal.to_player_id, "proposal recipient"),
+                "from_player_id": _player_row_id(game_id, proposal.from_player_id),
+                "to_player_id": _player_row_id(game_id, proposal.to_player_id),
                 "tier": proposal.tier,
                 "game_day": proposal.day,
                 "target_alliance_id": _optional_uuid(proposal.target_alliance_id),
@@ -764,7 +909,7 @@ async def _materialize_alliances(session: AsyncSession, game_id: UUID, state: Ga
             ),
             {
                 "game_id": game_id,
-                "player_id": _uuid(player.id, "player id"),
+                "player_id": _player_row_id(game_id, player.id),
                 "alliance_id": _uuid(player.alliance_id, "player alliance id"),
             },
         )
@@ -774,7 +919,7 @@ async def _materialize_player_details(
     session: AsyncSession, game_id: UUID, state: GameState
 ) -> None:
     for player in state.players:
-        player_id = _uuid(player.id, "player id")
+        player_id = _player_row_id(game_id, player.id)
         for loan in player.loans:
             await session.execute(
                 text(
@@ -848,7 +993,7 @@ async def _materialize_player_details(
             ),
             {
                 "game_id": game_id,
-                "player_id": _uuid(effect.player_id, "pending effect player"),
+                "player_id": _player_row_id(game_id, effect.player_id),
                 "effect_type": effect.effect_type,
                 "reason": effect.reason,
                 "ordinal": index,
@@ -869,7 +1014,7 @@ async def _materialize_player_details(
             ),
             {
                 "game_id": game_id,
-                "player_id": _uuid(record.player_id, "bankruptcy player"),
+                "player_id": _player_row_id(game_id, record.player_id),
                 "game_day": record.day,
                 "net_worth_before": record.net_worth_before,
                 "counts_for_end_condition": record.counts_for_end_condition,
@@ -892,7 +1037,7 @@ async def _materialize_player_details(
             ),
             {
                 "game_id": game_id,
-                "player_id": _uuid(order.player_id, "standing order player"),
+                "player_id": _player_row_id(game_id, order.player_id),
                 "rule": _json(
                     {
                         "bid_policy": order.bid_policy,
@@ -949,6 +1094,19 @@ def _uuid(value: str | UUID, label: str) -> UUID:
         raise PersistenceContractError(f"{label} must be a UUID: {value}") from exc
 
 
+def _player_row_id(game_id: UUID, player_id: str | UUID) -> UUID:
+    return uuid5(game_id, str(_uuid(player_id, "player id")))
+
+
+def _optional_player_row_id(game_id: UUID, value: object) -> UUID | None:
+    if value is None or not isinstance(value, str | UUID):
+        return None
+    try:
+        return _player_row_id(game_id, value)
+    except PersistenceContractError:
+        return None
+
+
 def _optional_uuid(value: object) -> UUID | None:
     if value is None or not isinstance(value, str | UUID):
         return None
@@ -956,3 +1114,9 @@ def _optional_uuid(value: object) -> UUID | None:
         return _uuid(value, "optional id")
     except PersistenceContractError:
         return None
+
+
+def _game_mode(value: str) -> GameMode:
+    if value not in {"daily", "blitz"}:
+        raise PersistenceContractError(f"unsupported game mode: {value}")
+    return cast(GameMode, value)

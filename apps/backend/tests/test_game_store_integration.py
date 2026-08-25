@@ -83,7 +83,7 @@ async def test_game_store_persists_events_snapshots_and_materialized_state() -> 
                         """
                         select position, cash
                           from public.game_players
-                         where game_id = :game_id and id = :player_id
+                         where game_id = :game_id and user_id = :player_id
                         """
                     ),
                     {"game_id": game_id, "player_id": player_ids[0]},
