@@ -12,7 +12,7 @@ BACKEND_PORT  ?= 8000
 .DEFAULT_GOAL := help
 .PHONY: help install dev dev-frontend dev-backend build build-frontend build-backend \
         test test-frontend test-backend lint lint-frontend lint-backend \
-        check-engine check-db validate-config seed-config sync-balance-doc \
+        check-engine check-db migrate validate-config seed-config sync-balance-doc \
         check-balance-doc play-cli simulate m1-check format clean ci
 
 help:               ## 列出所有 target
@@ -74,6 +74,9 @@ check-balance-doc:  ## ★ M1：檢查 docs/02 的 config 摘要是否同步
 
 check-db:           ## 驗證 Supabase 連線（需要網路，刻意不掛在 lint 下）
 	cd $(BACKEND) && uv run python scripts/check_db.py
+
+migrate:            ## ★ M4：依序套用 supabase/migrations（需要 DB）
+	cd $(BACKEND) && uv run python scripts/migrate.py
 
 lint: check-engine validate-config check-balance-doc lint-backend lint-frontend  ## engine 邊界 + config + docs 同步 + 機密外洩 + ruff + mypy + eslint + tsc
 

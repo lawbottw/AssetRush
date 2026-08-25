@@ -68,3 +68,6 @@ strict = true
 testpaths = ["tests"]
 pythonpath = ["src", "scripts"]
 asyncio_mode = "auto"
+markers = [
+    "integration: requires a disposable PostgreSQL database",
+]
